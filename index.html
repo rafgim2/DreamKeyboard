@@ -541,10 +541,9 @@
     window.addEventListener('load', loadDefaultMidi);
 
     // Función global para manejar la selección de panel en AR.
-    // Se calcula el gain en función del índice del panel (de 0 a 5, siendo 0 fortísimo y 5 pianísimo)
+    // Calcula el gain en función del índice del panel (0 → fortísimo, 5 → pianísimo)
     window.handleARPanelSelect = function(panelIndex) {
       const minGain = 0.15, maxGain = 1.0;
-      // Calcular effectiveGain linealmente: panel 0 → 1.0; panel 5 → 0.15
       const effectiveGain = maxGain - (panelIndex / 5) * (maxGain - minGain);
       if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
         let groupThreshold = 0.001;
@@ -604,24 +603,39 @@
       document.getElementById('container').style.display = 'flex';
     });
 
-    // Función para crear un panel con texto usando CanvasTexture
+    // Función para crear un panel con fondo y texto en dos mallas (para separar fondo y letra)
     function createTextPanel(text) {
+      const panelGroup = new THREE.Group();
+      const panelWidth = 2.0, panelHeight = 0.5;
+
+      // Malla de fondo (se cambiará de color al seleccionar)
+      const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
+      const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
+      panelGroup.add(bgMesh);
+
+      // Malla de texto (fondo transparente)
       const canvas = document.createElement('canvas');
-      canvas.width = 256;
+      canvas.width = 512;
       canvas.height = 128;
       const context = canvas.getContext('2d');
-      context.fillStyle = 'black';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.font = '48px sans-serif';
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.font = '64px sans-serif';
       context.fillStyle = 'white';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
       context.fillText(text, canvas.width / 2, canvas.height / 2);
-      const texture = new THREE.CanvasTexture(canvas);
-      const geometry = new THREE.PlaneGeometry(1, 0.5);
-      const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-      const panel = new THREE.Mesh(geometry, material);
-      return panel;
+      const textTexture = new THREE.CanvasTexture(canvas);
+      const textMaterial = new THREE.MeshBasicMaterial({ map: textTexture, transparent: true });
+      const textGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
+      const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+      textMesh.renderOrder = 1;
+      panelGroup.add(textMesh);
+
+      // Guardar referencia al material de fondo para cambiar su color
+      panelGroup.userData.bgMaterial = bgMaterial;
+
+      return panelGroup;
     }
 
     // Crear los 6 paneles con los nombres de matices
@@ -629,26 +643,26 @@
     const panels = [];
     panelTexts.forEach((text, index) => {
       const panel = createTextPanel(text);
-      // Posicionar los paneles en forma vertical frente al usuario
-      panel.position.set(0, 1 - index * 0.6, -2);
+      // Ubicar los paneles más cerca y más bajos: z = -1.2, y decrece según el índice
+      panel.position.set(0, 0.5 - index * 0.4, -1.2);
       scene.add(panel);
       panels.push(panel);
     });
 
-    // Función para manejar la interacción en AR: cambia el color del panel y dispara el evento de sonido
+    // Función para manejar la interacción en AR: cambia el fondo del panel y dispara el sonido
     function onPanelSelect(panel) {
-      // Generar un color aleatorio usando THREE.Color
+      // Cambiar el fondo de la malla (no el texto)
       const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
-      panel.material.color.copy(randomColor);
+      panel.userData.bgMaterial.color.copy(randomColor);
       setTimeout(() => {
-        panel.material.color.set(0xffffff);
+        panel.userData.bgMaterial.color.set(0x000000);
       }, 200);
-      // Obtener el índice del panel y disparar la función global que reproduce la nota correspondiente
+      // Obtener el índice del panel y disparar la función global de sonido
       const panelIndex = panels.indexOf(panel);
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Configurar un controlador XR para detectar la acción “select”
+    // Configurar el controlador XR para detectar la acción "select"
     const controller = renderer.xr.getController(0);
     controller.addEventListener('select', () => {
       const tempMatrix = new THREE.Matrix4();
@@ -656,23 +670,26 @@
       const raycaster = new THREE.Raycaster();
       raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
       raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-      const intersects = raycaster.intersectObjects(panels);
+      const intersects = raycaster.intersectObjects(panels, true);
       if (intersects.length > 0) {
-        onPanelSelect(intersects[0].object);
+        // Se obtiene el grupo padre en caso de que se interseque la malla de texto o fondo
+        const selectedPanel = intersects[0].object.parent;
+        onPanelSelect(selectedPanel);
       }
     });
     scene.add(controller);
 
-    // Para dispositivos sin controlador XR (por ejemplo, móviles), usar raycasting basado en el touch
+    // Para dispositivos sin controlador XR (por ejemplo, móviles) se usa raycasting basado en touch
     renderer.domElement.addEventListener('touchstart', (event) => {
       const touch = event.touches[0];
       const x = (touch.clientX / window.innerWidth) * 2 - 1;
       const y = - (touch.clientY / window.innerHeight) * 2 + 1;
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-      const intersects = raycaster.intersectObjects(panels);
+      const intersects = raycaster.intersectObjects(panels, true);
       if (intersects.length > 0) {
-        onPanelSelect(intersects[0].object);
+        const selectedPanel = intersects[0].object.parent;
+        onPanelSelect(selectedPanel);
       }
     });
 
