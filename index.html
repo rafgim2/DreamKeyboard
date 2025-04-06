@@ -557,6 +557,12 @@
     scene.add(rightHand);
     scene.add(leftHand);
 
+    // También se agregarán los controladores para poder detectar colisiones con ellos
+    const controller0 = renderer.xr.getController(0);
+    const controller1 = renderer.xr.getController(1);
+    scene.add(controller0);
+    scene.add(controller1);
+
     renderer.xr.addEventListener('sessionstart', () => {
       document.getElementById('container').style.display = 'none';
     });
@@ -615,12 +621,11 @@
     }
 
     // Configurar el controlador XR para dispositivos con controladores.
-    const controller = renderer.xr.getController(0);
-    controller.addEventListener('select', () => {
+    controller0.addEventListener('select', () => {
       const tempMatrix = new THREE.Matrix4();
-      tempMatrix.identity().extractRotation(controller.matrixWorld);
+      tempMatrix.identity().extractRotation(controller0.matrixWorld);
       const raycaster = new THREE.Raycaster();
-      raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+      raycaster.ray.origin.setFromMatrixPosition(controller0.matrixWorld);
       raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
       const intersects = raycaster.intersectObjects(panels, true);
       if (intersects.length > 0) {
@@ -628,11 +633,11 @@
         onPanelSelect(selectedPanel);
       }
     });
-    scene.add(controller);
+    scene.add(controller0);
 
-    // En cada frame se comprueba la distancia del joint "index-finger-tip" de ambas manos
+    // Función para chequear colisiones con las manos (cooldown de 250ms)
     function checkHandCollisions() {
-      const threshold = 0.06; // Umbral reducido para paneles más pequeños
+      const threshold = 0.06;
       const now = performance.now();
       for (let handIndex = 0; handIndex < 2; handIndex++) {
         const hand = renderer.xr.getHand(handIndex);
@@ -664,6 +669,29 @@
       }
     }
 
+    // Función para chequear colisiones con los controladores (mandos)
+    function checkControllerCollisions() {
+      const threshold = 0.06;
+      const now = performance.now();
+      const controllers = [];
+      if (controller0) controllers.push(controller0);
+      if (controller1) controllers.push(controller1);
+      controllers.forEach(ctrl => {
+        let ctrlPos = new THREE.Vector3();
+        ctrl.getWorldPosition(ctrlPos);
+        panels.forEach(panel => {
+          const panelCenter = new THREE.Vector3();
+          panel.getWorldPosition(panelCenter);
+          if (ctrlPos.distanceTo(panelCenter) < threshold) {
+            if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 250) {
+              onPanelSelect(panel);
+              panel.userData.lastActivated = now;
+            }
+          }
+        });
+      });
+    }
+
     // Listener para toques en pantalla.
     renderer.domElement.addEventListener('touchstart', (event) => {
       const touch = event.touches[0];
@@ -680,6 +708,7 @@
 
     function render() {
       checkHandCollisions();
+      checkControllerCollisions();
       renderer.render(scene, camera);
     }
     function animate() {
