@@ -2,26 +2,24 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- Meta viewport con user-scalable=no para evitar zoom accidental -->
+  <!-- Meta viewport para evitar zoom accidental -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>DreamTouch</title>
   <!-- Shim para evitar error de require -->
   <script>
     window.require = function() {};
   </script>
-  <!-- Scripts MIDI y soundfont (versión 0.12.0 desde cdn.jsdelivr.net) -->
+  <!-- Scripts MIDI y soundfont -->
   <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
   <script src="https://cdn.jsdelivr.net/npm/webmidi@2"></script>
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
   <style>
-    /* Aplicar zoom out a toda la página */
     html {
       transform: scale(0.9);
       transform-origin: top center;
     }
-    /* Fondo blanco y bloquea scroll/zoom */
     body {
       background-color: #FFFFFF;
       margin: 0;
@@ -32,7 +30,6 @@
       height: 100vh;
       transition: background-color 0.3s ease;
     }
-    /* Contenedor principal centrado con borde negro */
     #container {
       position: relative;
       display: flex;
@@ -57,7 +54,6 @@
       font-size: 0.9em;
       color: blue;
     }
-    /* Botón de pantalla completa en esquina superior derecha */
     #fullscreenBtn {
       position: absolute;
       top: 10px;
@@ -70,7 +66,6 @@
       cursor: pointer;
       z-index: 10;
     }
-    /* Área de toque: fondo negro, dividido en 6 franjas */
     #touchBox {
       width: 100%;
       height: 400px;
@@ -79,7 +74,6 @@
       flex-direction: column;
       position: relative;
     }
-    /* Franjas dinámicas: nombres en blanco, sin selección */
     #dynamicMarkingsContainer {
       width: 100%;
       height: 100%;
@@ -102,7 +96,6 @@
     #dynamicMarkingsContainer > div:last-child {
       border-bottom: none;
     }
-    /* Controles inferiores: mayor separación vertical */
     #buttons {
       margin-top: 40px;
       display: flex;
@@ -111,7 +104,6 @@
       gap: 10px;
       width: 100%;
     }
-    /* Botón de cargar: fondo verde claro, texto negro */
     #loadButton {
       background-color: #90EE90;
       color: black;
@@ -121,7 +113,6 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    /* Botón del pedal: fondo verde claro (activo por defecto), texto negro y tamaño reducido */
     #pedalBtn {
       background-color: #90EE90;
       color: black;
@@ -131,17 +122,14 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    /* Ocultar input */
     #midiFile {
       display: none;
     }
-    /* Nombre del archivo en cursiva y negro */
     #fileName {
       font-style: italic;
       margin-top: -10px;
       color: black;
     }
-    /* Selector de canciones */
     #sampleSongsContainer {
       display: flex;
       flex-direction: column;
@@ -157,7 +145,6 @@
       border: none;
       text-align: center;
     }
-    /* Estilos para el canvas de AR (se posiciona detrás del contenedor en modo no-AR) */
     canvas {
       position: fixed;
       top: 0;
@@ -166,7 +153,7 @@
   </style>
 </head>
 <body>
-  <!-- Interfaz tradicional (se oculta en AR) -->
+  <!-- Interfaz tradicional (oculta en AR) -->
   <div id="container">
     <button id="fullscreenBtn">⛶</button>
     <h1>DreamTouch</h1>
@@ -546,7 +533,7 @@
     }
   </script>
 
-  <!-- Código AR usando Three.js y ARButton -->
+  <!-- Código AR con Three.js y ARButton -->
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
@@ -567,10 +554,9 @@
       document.getElementById('container').style.display = 'flex';
     });
 
-    // Crear paneles en AR: cada panel es un grupo con malla de fondo y malla de texto.
+    // Función para crear un panel en AR (grupo con fondo y texto)
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      // Dimensiones: 1.0 m de ancho, 0.25 m de alto.
       const panelWidth = 1.0, panelHeight = 0.25;
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
@@ -596,7 +582,7 @@
       return panelGroup;
     }
 
-    // Crear los 6 paneles y ubicarlos a z = -0.8 y algo más bajos.
+    // Crear los paneles y ubicarlos a z = -0.8 y algo más bajos
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
     panelTexts.forEach((text, index) => {
@@ -616,7 +602,7 @@
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Configurar el controlador XR para dispositivos con controladores.
+    // Configurar el controlador XR (para dispositivos con controladores)
     const controller = renderer.xr.getController(0);
     controller.addEventListener('select', () => {
       const tempMatrix = new THREE.Matrix4();
@@ -632,31 +618,32 @@
     });
     scene.add(controller);
 
-    // Detección de colisión de la mano:
-    // Se itera sobre los hijos del objeto hand (XRHand) en lugar de usar "joints"
-    const cooldown = 500; // milisegundos
+    // Nueva detección: calcular la caja envolvente (bounding box) de la mano
+    const cooldown = 500; // ms
     function checkHandCollisions() {
       const hand = renderer.xr.getHand(0);
-      if (hand && hand.children && hand.children.length > 0) {
-        // Aseguramos que la mano actualice su matriz mundial
-        hand.updateMatrixWorld(true);
-        const now = performance.now();
-        for (let i = 0; i < hand.children.length; i++) {
-          const joint = hand.children[i];
-          const jointPos = new THREE.Vector3();
-          joint.getWorldPosition(jointPos);
-          panels.forEach(panel => {
-            // Actualizamos la matriz mundial del panel
-            panel.updateMatrixWorld(true);
-            const box = new THREE.Box3().setFromObject(panel);
-            if (box.containsPoint(jointPos)) {
-              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > cooldown) {
-                onPanelSelect(panel);
-                panel.userData.lastActivated = now;
-              }
-            }
-          });
+      if (hand && hand.length > 0) {
+        // Calcular la caja envolvente de la mano basada en todos sus joints
+        const handBox = new THREE.Box3();
+        for (let i = 0; i < hand.length; i++) {
+          const joint = hand[i];
+          if (joint) {
+            const pos = new THREE.Vector3();
+            joint.getWorldPosition(pos);
+            handBox.expandByPoint(pos);
+          }
         }
+        const now = performance.now();
+        panels.forEach(panel => {
+          panel.updateMatrixWorld(true);
+          const panelBox = new THREE.Box3().setFromObject(panel);
+          if (handBox.intersectsBox(panelBox)) {
+            if (!panel.userData.lastActivated || now - panel.userData.lastActivated > cooldown) {
+              onPanelSelect(panel);
+              panel.userData.lastActivated = now;
+            }
+          }
+        });
       }
     }
 
