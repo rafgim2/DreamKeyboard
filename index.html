@@ -1,1496 +1,756 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <title>AR Capitals Game / HTML Capitals Game</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <style>
-      /* Estilos generales (compartidos para AR y HTML) */
-      body {
-        margin: 0;
-        font-family: sans-serif;
-        overflow-y: auto;
+<head>
+  <meta charset="UTF-8">
+  <!-- Meta viewport con user-scalable=no para evitar zoom accidental -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>DreamTouch</title>
+  <!-- Shim para evitar error de require -->
+  <script>
+    window.require = function() {};
+  </script>
+  <!-- Scripts MIDI y soundfont (versión 0.12.0 desde cdn.jsdelivr.net) -->
+  <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
+  <script src="https://cdn.jsdelivr.net/npm/webmidi@2"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
+  <!-- Se incluye Three.js para el modo AR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    /* Aplicar zoom out a toda la página */
+    html {
+      transform: scale(0.9);
+      transform-origin: top center;
+    }
+    /* Fondo blanco y bloquea scroll/zoom */
+    body {
+      background-color: #FFFFFF;
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      transition: background-color 0.3s ease;
+    }
+    /* Contenedor principal centrado con borde negro */
+    #container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 6px solid black;
+      padding: 30px;
+      background-color: #FFFFFF;
+      color: black;
+      width: 350px;
+      box-sizing: border-box;
+    }
+    h1 {
+      margin: 0 0 20px 0;
+      font-size: 2.8em;
+      text-align: center;
+    }
+    #copyright {
+      margin-bottom: 20px;
+      margin-top: -20px;
+      font-size: 0.9em;
+      color: blue;
+    }
+    /* Botón de pantalla completa en esquina superior derecha */
+    #fullscreenBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.5);
+      border: none;
+      color: white;
+      padding: 5px 10px;
+      font-size: 1em;
+      cursor: pointer;
+      z-index: 10;
+    }
+    /* Botón para activar AR */
+    #arBtn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.5);
+      border: none;
+      color: white;
+      padding: 5px 10px;
+      font-size: 1em;
+      cursor: pointer;
+      z-index: 10;
+    }
+    /* Área de toque: fondo negro, dividido en 6 franjas */
+    #touchBox {
+      width: 100%;
+      height: 400px;
+      background-color: black;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    /* Franjas dinámicas: nombres en blanco, sin selección */
+    #dynamicMarkingsContainer {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+    #dynamicMarkingsContainer > div {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid white;
+      font-size: 0.8em;
+      color: white;
+      user-select: none;
+      background-color: black;
+      transition: background-color 0.3s ease;
+    }
+    #dynamicMarkingsContainer > div:last-child {
+      border-bottom: none;
+    }
+    /* Controles inferiores: mayor separación vertical */
+    #buttons {
+      margin-top: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+    }
+    /* Botón de cargar: fondo verde claro, texto negro */
+    #loadButton {
+      background-color: #90EE90;
+      color: black;
+      padding: 10px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    /* Botón del pedal: fondo verde claro (activo por defecto), texto negro y tamaño reducido */
+    #pedalBtn {
+      background-color: #90EE90;
+      color: black;
+      padding: 5px 10px;
+      font-size: 0.9em;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    /* Ocultar input */
+    #midiFile {
+      display: none;
+    }
+    /* Nombre del archivo en cursiva y negro */
+    #fileName {
+      font-style: italic;
+      margin-top: -10px;
+      color: black;
+    }
+    /* Selector de canciones */
+    #sampleSongsContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      width: 100%;
+    }
+    #sampleSongs {
+      padding: 5px;
+      font-size: 0.8em;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      border: none;
+      text-align: center;
+    }
+    /* Contenedor AR: pantalla completa, oculto por defecto */
+    #arContainer {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      z-index: 100;
+    }
+    /* Botón para salir del modo AR */
+    #exitArBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.5);
+      border: none;
+      padding: 10px;
+      font-size: 1em;
+      z-index: 101;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <!-- Botón de pantalla completa -->
+    <button id="fullscreenBtn">⛶</button>
+    <!-- Botón para activar AR -->
+    <button id="arBtn">AR</button>
+    <h1>DreamTouch</h1>
+    <div id="copyright">
+      <a href="https://www.youtube.com/@rafgim" target="_blank" style="color: inherit; text-decoration: none;">© By Rafael Gimeno</a>
+    </div>
+    <!-- Área de toque -->
+    <div id="touchBox">
+      <div id="dynamicMarkingsContainer">
+        <div>Fortissimo</div>
+        <div>Forte</div>
+        <div>Mezzo-forte</div>
+        <div>Mezzo-piano</div>
+        <div>Piano</div>
+        <div>Pianissimo</div>
+      </div>
+    </div>
+    <!-- Controles inferiores -->
+    <div id="buttons">
+      <label for="midiFile" id="loadButton">
+        Cargar Archivo MIDI
+        <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi,application/x-midi">
+      </label>
+      <div id="sampleSongsContainer">
+        <label for="sampleSongs">Canciones de muestra:</label>
+        <select id="sampleSongs">
+          <option value="">-- Selecciona una canción --</option>
+          <option value="Beethoven Para Elisa.mid">Beethoven Para Elisa.mid</option>
+          <option value="Beethoven Patética.mid">Beethoven - Patética.mid</option>
+          <option value="Handel & Halvorsen Passacaglia.mid">Handel & Halvorsen - Passacaglia.mid</option>
+          <option value="R.Korsakov El vuelo del moscardón.mid">R.Korsakov - El vuelo del moscardón.mid</option>
+          <option value="Rachmaninoff Concert nº2 Tercer mov.mid">Rachmaninoff - Concert nº2 Tercer mov.mid</option>
+          <option value="Satie Gymnopedie n1.mid">Satie - Gymnopedie n1.mid</option>
+        </select>
+      </div>
+      <div id="fileName"></div>
+      <!-- Botón de pedal al final -->
+      <button id="pedalBtn">Pedal ON</button>
+    </div>
+  </div>
+
+  <!-- Contenedor AR (oculto por defecto) -->
+  <div id="arContainer">
+    <button id="exitArBtn">Salir AR</button>
+  </div>
+
+  <script>
+    // =========================
+    // CÓDIGO ORIGINAL
+    // =========================
+    // VARIABLES PARA LAS NOTAS MIDI
+    var notesToPlay = [];
+    var currentNoteIndex = 0;
+
+    // CONFIGURACIÓN DEL AUDIO
+    var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Filtros para suavizar el sonido:
+    var highpass = audioContext.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.frequency.value = 200;
+    var lowpass = audioContext.createBiquadFilter();
+    lowpass.type = "lowpass";
+    lowpass.frequency.value = 1500;
+    highpass.connect(lowpass);
+    lowpass.connect(audioContext.destination);
+
+    // Variable para el instrumento
+    var pianoInstrument = null;
+    if (window.Soundfont && typeof window.Soundfont.instrument === 'function') {
+      Soundfont.instrument(audioContext, 'acoustic_grand_piano', { soundfont: 'MusyngKite' })
+        .then(function(piano) {
+          pianoInstrument = piano;
+          console.log("Instrumento Acoustic Grand Piano (MusyngKite) cargado.");
+        })
+        .catch(function(error) {
+          console.error("Error al cargar el instrumento:", error);
+        });
+    } else {
+      console.error("No se encontró el método instrument en Soundfont.");
+    }
+
+    // Nota por defecto
+    var defaultMidiNote = 60; // C4
+    // Duración usada en modo PEDAL (fade out automático)
+    var noteDuration = 3.0;
+    // Pedal activado por defecto
+    var pedalOn = true;
+    // Objeto para almacenar las notas activas en modo SIN PEDAL (clave: id único por toque)
+    var activeNotes = {};
+
+    // Función para convertir número MIDI a nombre (ej. "C4")
+    function midiNoteToNoteName(midi) {
+      var octave = Math.floor(midi / 12) - 1;
+      var noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      return noteNames[midi % 12] + octave;
+    }
+
+    // Cálculo del gain según posición vertical
+    function computeEffectiveGain(relativeY) {
+      var minGain = 0.15;
+      var maxGain = 1.0;
+      return minGain + (maxGain - minGain) * (1 - relativeY);
+    }
+
+    // Reproducción en modo PEDAL ON (comportamiento original)
+    function playPianoNote(gain, midiNote) {
+      if (pianoInstrument) {
+        var noteName = midiNoteToNoteName(midiNote);
+        var source = pianoInstrument.play(noteName, audioContext.currentTime, { 
+          gain: gain, 
+          duration: noteDuration, 
+          velocity: gain * 127 
+        });
+        var noteGain = audioContext.createGain();
+        noteGain.gain.setValueAtTime(gain, audioContext.currentTime);
+        source.disconnect();
+        source.connect(noteGain);
+        noteGain.gain.setValueAtTime(gain, audioContext.currentTime + 2);
+        noteGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 3);
+        noteGain.connect(highpass);
+        console.log("Nota reproducida (PEDAL ON):", noteName, "gain:", gain);
+      } else {
+        console.warn("El instrumento aún no se ha cargado.");
       }
-      /* Estilos del overlay inicial */
-      #overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        min-height: 100vh;
-        background-color: #fffa9c;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: center;
-        text-align: center;
-        z-index: 10;
-        overflow-y: auto;
-        box-sizing: border-box;
-        padding: 20px;
+    }
+
+    // Reproducción en modo SIN PEDAL: la nota se mantiene hasta detenerse manualmente
+    function playNoteNonPedal(gain, midiNote) {
+      if (pianoInstrument) {
+        var noteName = midiNoteToNoteName(midiNote);
+        var source = pianoInstrument.play(noteName, audioContext.currentTime, {
+          gain: gain,
+          duration: 100, // duración larga para mantener la nota
+          velocity: gain * 127
+        });
+        var noteGain = audioContext.createGain();
+        noteGain.gain.setValueAtTime(gain, audioContext.currentTime);
+        source.disconnect();
+        source.connect(noteGain);
+        noteGain.connect(highpass);
+        console.log("Nota reproducida (SIN PEDAL):", noteName, "gain:", gain);
+        return {
+          source: source,
+          gainNode: noteGain,
+          stop: function() {
+            noteGain.gain.cancelScheduledValues(audioContext.currentTime);
+            noteGain.gain.setValueAtTime(noteGain.gain.value, audioContext.currentTime);
+            noteGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2);
+            setTimeout(function(){
+              if (source.stop) { source.stop(); }
+            }, 250);
+          }
+        };
+      } else {
+        console.warn("El instrumento aún no se ha cargado.");
       }
-      #overlay a {
-        font-size: 14px;
-        margin-top: 10px;
-        margin-bottom: 20px;
-        color: blue;
-        text-decoration: none;
-      }
-      #overlay .respuestas-container {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 20px;
-      }
-      #overlay .respuestas-container label {
-        font-size: 14px;
-        color: black;
-      }
-      #overlay .respuestas-container select {
-        font-size: 14px;
-      }
-      #overlay img {
-        border-radius: 20px;
-        max-width: 15%;
-        margin-top: 50px;
-        margin-bottom: 10px;
-      }
-      @media (orientation: portrait) {
-        #overlay img {
-          max-width: 70%;
+    }
+
+    // Cargar archivo MIDI desde input
+    document.getElementById('midiFile').addEventListener('change', function(e) {
+      document.getElementById('fileName').textContent = e.target.files[0].name;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var midi = new MidiFile(e.target.result);
+          extractNotesFromMidi(midi);
+        } catch (error) {
+          console.error("Error al parsear el archivo MIDI:", error);
         }
-      }
-      /* Leaderboard preview en el overlay */
-      #leaderboardPreview {
-        max-width: 80%;
-        max-height: 120px;
-        overflow-y: auto;
-        background-color: #fff;
-        color: #000;
-        font-size: 12px;
-        margin-bottom: 20px;
-        border: 1px solid #000;
-        border-radius: 6px;
-        padding: 4px;
-      }
-      #leaderboardPreview table {
-        border-collapse: collapse;
-        width: 100%;
-      }
-      #leaderboardPreview th, #leaderboardPreview td {
-        border: 1px solid #666;
-        padding: 4px;
-        text-align: center;
-      }
-      /* Estilos del contenedor HTML para el modo no AR */
-      #gameContainer {
-        position: relative;
-        width: 100%;
-        min-height: 100vh;
-        background-color: #f0f0f0;
-        color: #000;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-      #gameContainer div, #gameContainer button {
-        margin-bottom: 20px;
-      }
-      #gameContainer button {
-        font-size: 24px;
-        padding: 10px 20px;
-      }
-      #gameContainer table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      #gameContainer th, #gameContainer td {
-        border: 1px solid #666;
-        padding: 4px;
-        text-align: center;
-      }
-      button, input {
-        -webkit-appearance: none;
-        border-radius: 6px;
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Audios -->
-    <audio id="successSound" src="https://raw.githubusercontent.com/rafgim2/ARCapitals/main/acierto.wav" preload="auto"></audio>
-    <audio id="errorSound" src="https://raw.githubusercontent.com/rafgim2/ARCapitals/main/error.wav" preload="auto"></audio>
-    <audio id="timerSound" src="https://raw.githubusercontent.com/rafgim2/ARCapitals/main/timer7.mp3" preload="auto"></audio>
-    <!-- Nota: actualmente, beepSound usa el mismo archivo que errorSound -->
-    <audio id="beepSound" src="https://raw.githubusercontent.com/rafgim2/ARCapitals/main/error.wav" preload="auto"></audio>
-
-    <script type="module">
-      /***** 1) Firebase y Firestore *****/
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
-      import { 
-        getFirestore, collection, addDoc, orderBy, getDocs, serverTimestamp,
-        query, where, limit, updateDoc, doc
-      } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
-
-      const firebaseConfig = {
-        apiKey: "AIzaSyD5EAMg-0p54f8bPq8SVdZ_ePg5Xso3cmg",
-        authDomain: "arm1-acbba.firebaseapp.com",
-        projectId: "arm1-acbba",
-        storageBucket: "arm1-acbba.firebasestorage.app",
-        messagingSenderId: "408825932019",
-        appId: "1:408825932019:web:10f2079b590b4c9ca3af86",
-        measurementId: "G-S78TM6PVRL"
       };
+      reader.readAsBinaryString(e.target.files[0]);
+    });
 
-      const appFirebase = initializeApp(firebaseConfig);
-      const analytics = getAnalytics(appFirebase);
-      const db = getFirestore(appFirebase);
-
-      /***** 2) Función para actualizar el leaderboard preview en el overlay *****/
-      async function updateLeaderboardPreview(numAnswers) {
-        const collectionName = `Capleaderboard_${numAnswers}`;
-        try {
-          let top3Query = query(
-            collection(db, collectionName),
-            orderBy("score", "desc"),
-            limit(3)
-          );
-          const querySnapshot = await getDocs(top3Query);
-          const results = [];
-          querySnapshot.forEach((docSnap) => {
-            results.push(docSnap.data());
-          });
-
-          const container = document.getElementById('leaderboardPreview');
-          container.innerHTML = "";
-          if (results.length > 0) {
-            let html = "<table>";
-            html += "<tr><th>Pos</th><th>Nombre</th><th>Puntos</th></tr>";
-            for (let i = 0; i < results.length; i++) {
-              html += `<tr>
-                <td>${i+1}</td>
-                <td>${results[i].name}</td>
-                <td>${results[i].score}</td>
-              </tr>`;
+    // Cargar MIDI desde URL
+    function loadMidiFromUrl(url, fileName) {
+      fetch(url)
+        .then(response => response.arrayBuffer())
+        .then(data => {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            try {
+              var midi = new MidiFile(e.target.result);
+              extractNotesFromMidi(midi);
+            } catch (error) {
+              console.error("Error al parsear el archivo MIDI:", error);
             }
-            html += "</table>";
-            container.innerHTML = html;
-          } else {
-            container.innerHTML = "<p>No hay puntuaciones aún.</p>";
-          }
-        } catch (err) {
-          console.error("Error cargando top 3:", err);
-          document.getElementById('leaderboardPreview').innerHTML =
-            "<p>Error cargando clasificación.</p>";
-        }
-      }
-
-      /***** 3) Código AR (Capitals) - NO MODIFICAR ESTA PARTE, salvo la adición del botón HTML *****/
-      import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js';
-      import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/webxr/ARButton.js';
-
-      // Variables globales del juego AR
-      let camera, scene, renderer;
-      let questionMesh = null;
-      let answers = [];
-      let correctAnswer = "";
-      let hasCollided = false;
-      let gameOver = false;
-      let correctCount = 0;
-      let wrongCount = 0;
-      let questionText = "";
-      let selectedNumAnswers = 4;
-      const gameDuration = 60; // segundos
-      const collisionThreshold = 0.2;
-      const resolutionFactor = 4;
-
-      // Variables para HUD y countdown
-      let countdownMesh, scoreMesh;
-      let beepPlayed = false;
-      let gameReady = false;
-      let countdownStarted = false;
-      
-      // Variables para efectos y tiempos
-      let initialCameraPos = new THREE.Vector3();
-      let initialCameraDir = new THREE.Vector3();
-      let sparkTexture = null;
-      const sparksSystems = [];
-      let currentQuestionStartTime = 0;
-      let correctResponseTimes = [];
-      let leaderboardResults = [];
-      let scoreboardStartIndex = 0;
-      const pageSize = 10;
-      let playerPosition = null;
-      let leaderboardMesh = null, restartButtonMesh = null, scrollUpButtonMesh = null, scrollDownButtonMesh = null;
-      let gameStartTime = 0;
-      let playerName = "";
-
-      function drawRoundedRect(ctx, x, y, w, h, r) {
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + w - r, y);
-        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-        ctx.lineTo(x + w, y + h - r);
-        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-        ctx.lineTo(x + r, y + h);
-        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-        ctx.lineTo(x, y + r);
-        ctx.quadraticCurveTo(x, y, x + r, y);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      function createCanvasPlane(canvas, ctx, width, height) {
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        const geometry = new THREE.PlaneGeometry(width, height);
-        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.userData = { canvas, ctx, texture };
-        return mesh;
-      }
-
-      function createButton(text, planeWidth = 0.3, planeHeight = 0.1) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256 * resolutionFactor;
-        canvas.height = 64 * resolutionFactor;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = "#007BFF";
-        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 10 * resolutionFactor);
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = 'Bold ' + (18 * resolutionFactor) + 'px Arial';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        return new THREE.Mesh(geometry, material);
-      }
-
-      // Función para detectar toques en AR (para móviles)
-      function onTouchStartAR(event) {
-        if (!/Mobi|Android/i.test(navigator.userAgent)) return;
-        const touch = event.touches[0];
-        const x = (touch.clientX / window.innerWidth) * 2 - 1;
-        const y = -(touch.clientY / window.innerHeight) * 2 + 1;
-        const mouseVector = new THREE.Vector2(x, y);
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouseVector, camera);
-        let objectsToIntersect = [];
-        if (!gameOver) {
-          objectsToIntersect = answers;
-        } else {
-          let finalButtons = [];
-          if (restartButtonMesh) finalButtons.push(restartButtonMesh);
-          if (scrollUpButtonMesh) finalButtons.push(scrollUpButtonMesh);
-          if (scrollDownButtonMesh) finalButtons.push(scrollDownButtonMesh);
-          objectsToIntersect = finalButtons;
-        }
-        const intersects = raycaster.intersectObjects(objectsToIntersect);
-        if (intersects.length > 0 && !hasCollided) {
-          const objHit = intersects[0].object;
-          hasCollided = true;
-          if (!gameOver) {
-            if (objHit.userData.answer === correctAnswer) {
-              let responseTime = performance.now() - currentQuestionStartTime;
-              correctResponseTimes.push(responseTime);
-              correctCount++;
-              playSound('successSound');
-              createSparksEffect(objHit.position);
-              if (questionMesh) questionMesh.visible = false;
-              answers.forEach(a => a.visible = false);
-              setTimeout(() => {
-                if (!gameOver) {
-                  generateQuestion();
-                  if (questionMesh) questionMesh.visible = true;
-                  answers.forEach(a => a.visible = true);
-                }
-                hasCollided = false;
-              }, 1000);
-            } else {
-              wrongCount++;
-              playSound('errorSound');
-              answers.forEach(a => a.material.color.set(0xff0000));
-              setTimeout(() => {
-                answers.forEach(a => a.material.color.set(0xffffff));
-                hasCollided = false;
-              }, 500);
-            }
-          } else {
-            if (objHit === restartButtonMesh) {
-              playSound('successSound');
-              createSparksEffect(objHit.position);
-              objHit.visible = false;
-              setTimeout(() => {
-                restartGame();
-                hasCollided = false;
-              }, 1000);
-            } else if (objHit === scrollUpButtonMesh) {
-              scoreboardStartIndex -= pageSize;
-              if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-              drawLeaderboardSegment();
-              setTimeout(() => { hasCollided = false; }, 500);
-            } else if (objHit === scrollDownButtonMesh) {
-              scoreboardStartIndex += pageSize;
-              if (scoreboardStartIndex >= leaderboardResults.length) {
-                scoreboardStartIndex = leaderboardResults.length - pageSize;
-                if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-              }
-              drawLeaderboardSegment();
-              setTimeout(() => { hasCollided = false; }, 500);
-            }
-          }
-        }
-      }
-      window.addEventListener('touchstart', onTouchStartAR, false);
-
-      function playSound(id) {
-        const el = document.getElementById(id);
-        if (el) {
-          const clone = el.cloneNode();
-          clone.play().catch(e => {});
-        }
-      }
-
-      function init() {
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.xr.enabled = true;
-        document.body.appendChild(renderer.domElement);
-
-        const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-        light.position.set(0.5, 1, 0.25);
-        scene.add(light);
-
-        window.addEventListener('resize', onWindowResize);
-
-        // Overlay inicial: imagen, link, selector de respuestas, leaderboard preview e input de nombre
-        const overlay = document.createElement('div');
-        overlay.id = 'overlay';
-        overlay.innerHTML = `
-          <img src="ARCapitals2.jpeg" alt="ARCapitals" style="margin-bottom:20px; margin-top:0px;">
-          <a href="https://www.youtube.com/@rafgim" target="_blank">© By Rafael Gimeno</a>
-          <div class="respuestas-container">
-            <label for="numAnswers">Respuestas:</label>
-            <select id="numAnswers">
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="7">7</option>
-              <option value="8">8</option>
-              <option value="9">9</option>
-              <option value="10">10</option>
-            </select>
-          </div>
-          <div id="leaderboardPreview"></div>
-          <input type="text" id="playerName" placeholder="Ingresa tu nombre" style="padding:10px; font-size:16px; margin-bottom:20px;" maxlength="10">
-        `;
-
-        // Botón AR (se mantiene igual)
-        const arButton = ARButton.createButton(renderer, { 
-          requiredFeatures: ['hit-test'],
-          optionalFeatures: ['hand-tracking']
-        });
-        arButton.style.position = 'absolute';
-        arButton.style.top = '650px';
-        arButton.style.left = '100%';
-        arButton.style.transform = 'translateX(0%)';
-        arButton.style.width = '150px';
-        arButton.style.height = '50px';
-        arButton.style.fontSize = '16px';
-        arButton.style.backgroundColor = 'green';
-        arButton.style.color = 'white';
-        overlay.appendChild(arButton);
-
-        // BOTÓN ADICIONAL: Iniciar versión HTML debajo del botón AR
-        const htmlButton = document.createElement('button');
-        htmlButton.innerText = "Iniciar versión HTML";
-        htmlButton.style.fontSize = '16px';
-        htmlButton.style.padding = '10px 20px';
-        htmlButton.style.marginTop = '10px';
-        htmlButton.onclick = () => {
-          selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-          playerName = document.getElementById('playerName').value || "Jugador";
-          overlay.remove();
-          // Si hay una sesión XR activa, terminarla
-          if (renderer.xr && renderer.xr.getSession()) {
-            renderer.xr.getSession().end().catch(e => console.error(e));
-          }
-          // Remover el canvas de AR para evitar que tape el contenido HTML
-          if (renderer && renderer.domElement && renderer.domElement.parentNode) {
-            renderer.domElement.parentNode.removeChild(renderer.domElement);
-          }
-          initHTML();
-        };
-        overlay.appendChild(htmlButton);
-
-        document.body.appendChild(overlay);
-
-        const selectAnswers = document.getElementById('numAnswers');
-        selectAnswers.addEventListener('change', () => {
-          const num = parseInt(selectAnswers.value) || 4;
-          updateLeaderboardPreview(num);
-        });
-        updateLeaderboardPreview(4);
-
-        renderer.xr.addEventListener('sessionstart', () => {
-          selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-          playerName = document.getElementById('playerName').value || "Jugador";
-          camera.getWorldPosition(initialCameraPos);
-          camera.getWorldDirection(initialCameraDir);
-          initialCameraDir.normalize();
-          createAnswerObjects(selectedNumAnswers, true);
-          overlay.remove();
-          generateQuestion();
-          createScoreDisplay();
-          gameReady = true;
-        });
-      }
-
-      function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      }
-
-      function createAnswerObjects(numAnswers, initialCreation) {
-        if (initialCreation) {
-          const radius = 0.8;
-          const angleStart = -Math.PI/4;
-          const angleEnd = Math.PI/4;
-          for (let i = 0; i < numAnswers; i++) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 256 * resolutionFactor;
-            canvas.height = 256 * resolutionFactor;
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#007BFF";
-            drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-            ctx.fillStyle = "#FFFFFF";
-            ctx.font = 'Bold ' + (75 * resolutionFactor) + 'px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText("...", canvas.width / 2, canvas.height / 2);
-
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
-            const geometry = new THREE.PlaneGeometry(0.15, 0.15);
-            const mesh = new THREE.Mesh(geometry, material);
-            const angle = angleStart + (angleEnd - angleStart) * (i / (numAnswers - 1));
-            mesh.position.set(
-              radius * Math.sin(angle),
-              0,
-              -radius * Math.cos(angle)
-            );
-            mesh.lookAt(initialCameraPos);
-            mesh.userData.answer = "";
-            answers.push(mesh);
-            scene.add(mesh);
-          }
-        } else {
-          const wrongSet = new Set();
-          while (wrongSet.size < (selectedNumAnswers - 1)) {
-            const rnd = Math.floor(Math.random() * countries.length);
-            const cand = countries[rnd].capital;
-            if (cand !== correctAnswer) {
-              wrongSet.add(cand);
-            }
-          }
-          const array = [correctAnswer, ...wrongSet];
-          array.sort(() => Math.random() - 0.5);
-          for (let i = 0; i < selectedNumAnswers; i++) {
-            updateAnswerPanel(answers[i], array[i]);
-          }
-          const radius = 0.8;
-          const uniformGap = 0.1;
-          let alphas = [];
-          for (let i = 0; i < selectedNumAnswers; i++) {
-            let panelWidth = answers[i].userData.panelWidth;
-            let alpha = Math.atan((panelWidth / 2) / radius);
-            alphas.push(alpha);
-          }
-          let totalSpan = alphas[0] + alphas[selectedNumAnswers - 1] + uniformGap * (selectedNumAnswers - 1);
-          for (let i = 0; i < selectedNumAnswers - 1; i++) {
-            totalSpan += alphas[i] + alphas[i + 1];
-          }
-          let theta = [];
-          theta[0] = -totalSpan / 2 + alphas[0];
-          for (let i = 0; i < selectedNumAnswers - 1; i++) {
-            theta[i + 1] = theta[i] + alphas[i] + uniformGap + alphas[i + 1];
-          }
-          for (let i = 0; i < selectedNumAnswers; i++) {
-            answers[i].position.set(
-              radius * Math.sin(theta[i]),
-              answers[i].position.y,
-              -radius * Math.cos(theta[i])
-            );
-            answers[i].lookAt(initialCameraPos);
-          }
-        }
-      }
-
-      function updateAnswerPanel(mesh, value) {
-        const tmpCanvas = document.createElement('canvas');
-        const tmpCtx = tmpCanvas.getContext('2d');
-        const fontSize = 75 * resolutionFactor;
-        tmpCtx.font = 'Bold ' + fontSize + 'px Arial';
-        const metrics = tmpCtx.measureText(value);
-        const padding = 40 * resolutionFactor;
-        const canvasWidth = metrics.width + padding;
-        const canvasHeight = fontSize + padding;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.font = 'Bold ' + fontSize + 'px Arial';
-        ctx.fillStyle = "#007BFF";
-        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-        ctx.fillStyle = "#FFFFFF";
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(value, canvas.width / 2, canvas.height / 2);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        const scaleFactor = 0.15 / (256 * resolutionFactor);
-        const newWidth = canvas.width * scaleFactor;
-        const newHeight = canvas.height * scaleFactor;
-
-        mesh.material.map = texture;
-        mesh.material.needsUpdate = true;
-        mesh.geometry.dispose();
-        mesh.geometry = new THREE.PlaneGeometry(newWidth, newHeight);
-        mesh.userData.panelWidth = newWidth;
-        mesh.userData.answer = value;
-      }
-
-      function updateQuestionPanel() {
-        const tmpCanvas = document.createElement('canvas');
-        const tmpCtx = tmpCanvas.getContext('2d');
-        const fontSize = 48 * resolutionFactor;
-        tmpCtx.font = 'Bold ' + fontSize + 'px Arial';
-        const metrics = tmpCtx.measureText(questionText);
-        const padding = 40 * resolutionFactor;
-        const canvasWidth = metrics.width + padding;
-        const canvasHeight = 128 * resolutionFactor;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.font = 'Bold ' + fontSize + 'px Arial';
-        ctx.fillStyle = "#007BFF";
-        drawRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 20 * resolutionFactor);
-        ctx.fillStyle = "#FFFFFF";
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(questionText, canvas.width / 2, canvas.height / 2);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        const scaleX = 0.6 / (512 * resolutionFactor);
-        const scaleY = 0.15 / (128 * resolutionFactor);
-        const newWidth = canvas.width * scaleX;
-        const newHeight = canvas.height * scaleY;
-
-        if (questionMesh) scene.remove(questionMesh);
-        const geometry = new THREE.PlaneGeometry(newWidth, newHeight);
-        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
-        questionMesh = new THREE.Mesh(geometry, material);
-        questionMesh.position.set(0, 0.3, -0.8);
-        scene.add(questionMesh);
-      }
-
-      const countries = [
-        { country: "Afganistán", capital: "Kabul" },
-        { country: "Albania", capital: "Tirana" },
-        { country: "Argelia", capital: "Argel" },
-        { country: "Andorra", capital: "Andorra la Vieja" },
-        { country: "Angola", capital: "Luanda" },
-        { country: "Antigua y Barbuda", capital: "Saint John's" },
-        { country: "Argentina", capital: "Buenos Aires" },
-        { country: "Armenia", capital: "Ereván" },
-        { country: "Australia", capital: "Camberra" },
-        { country: "Austria", capital: "Viena" },
-        { country: "Azerbaiyán", capital: "Bakú" },
-        { country: "Bahamas", capital: "Nasáu" },
-        { country: "Baréin", capital: "Manama" },
-        { country: "Bangladés", capital: "Daca" },
-        { country: "Barbados", capital: "Bridgetown" },
-        { country: "Bielorrusia", capital: "Minsk" },
-        { country: "Bélgica", capital: "Bruselas" },
-        { country: "Belice", capital: "Belmopán" },
-        { country: "Benín", capital: "Porto Novo" },
-        { country: "Bután", capital: "Thimphu" },
-        { country: "Bolivia", capital: "Sucre" },
-        { country: "Bosnia y Herzegovina", capital: "Sarajevo" },
-        { country: "Botsuana", capital: "Gaborone" },
-        { country: "Brasil", capital: "Brasilia" },
-        { country: "Brunéi", capital: "Bandar Seri Begawan" },
-        { country: "Bulgaria", capital: "Sofía" },
-        { country: "Burkina Faso", capital: "Uagadugú" },
-        { country: "Burundi", capital: "Gitega" },
-        { country: "Cabo Verde", capital: "Praia" },
-        { country: "Camboya", capital: "Nom Pen" },
-        { country: "Camerún", capital: "Yaundé" },
-        { country: "Canadá", capital: "Ottawa" },
-        { country: "República Centroafricana", capital: "Bangui" },
-        { country: "Chad", capital: "Yamena" },
-        { country: "Chile", capital: "Santiago" },
-        { country: "China", capital: "Pekín" },
-        { country: "Colombia", capital: "Bogotá" },
-        { country: "Comoras", capital: "Moroni" },
-        { country: "Congo (Brazzaville)", capital: "Brazzaville" },
-        { country: "Congo (Kinshasa)", capital: "Kinsasa" },
-        { country: "Costa Rica", capital: "San José" },
-        { country: "Costa de Marfil", capital: "Yamusukro" },
-        { country: "Croacia", capital: "Zagreb" },
-        { country: "Cuba", capital: "La Habana" },
-        { country: "Chipre", capital: "Nicosia" },
-        { country: "República Checa", capital: "Praga" },
-        { country: "Dinamarca", capital: "Copenhague" },
-        { country: "Yibuti", capital: "Yibuti" },
-        { country: "Dominica", capital: "Roseau" },
-        { country: "República Dominicana", capital: "Santo Domingo" },
-        { country: "Ecuador", capital: "Quito" },
-        { country: "Egipto", capital: "El Cairo" },
-        { country: "El Salvador", capital: "San Salvador" },
-        { country: "Guinea Ecuatorial", capital: "Malabo" },
-        { country: "Eritrea", capital: "Asmara" },
-        { country: "Estonia", capital: "Tallin" },
-        { country: "Esuatini", capital: "Mbabane" },
-        { country: "Etiopía", capital: "Adís Abeba" },
-        { country: "Fiyi", capital: "Suva" },
-        { country: "Finlandia", capital: "Helsinki" },
-        { country: "Francia", capital: "París" },
-        { country: "Gabón", capital: "Libreville" },
-        { country: "Gambia", capital: "Banjul" },
-        { country: "Georgia", capital: "Tiflis" },
-        { country: "Alemania", capital: "Berlín" },
-        { country: "Ghana", capital: "Acra" },
-        { country: "Grecia", capital: "Atenas" },
-        { country: "Granada", capital: "Saint George's" },
-        { country: "Guatemala", capital: "Ciudad de Guatemala" },
-        { country: "Guinea", capital: "Conakri" },
-        { country: "Guinea-Bisáu", capital: "Bisáu" },
-        { country: "Guyana", capital: "Georgetown" },
-        { country: "Haití", capital: "Puerto Príncipe" },
-        { country: "Honduras", capital: "Tegucigalpa" },
-        { country: "Hungría", capital: "Budapest" },
-        { country: "Islandia", capital: "Reikiavik" },
-        { country: "India", capital: "Nueva Delhi" },
-        { country: "Indonesia", capital: "Yakarta" },
-        { country: "Irán", capital: "Teherán" },
-        { country: "Irak", capital: "Bagdad" },
-        { country: "Irlanda", capital: "Dublín" },
-        { country: "Israel", capital: "Jerusalén" },
-        { country: "Italia", capital: "Roma" },
-        { country: "Jamaica", capital: "Kingston" },
-        { country: "Japón", capital: "Tokio" },
-        { country: "Jordania", capital: "Amán" },
-        { country: "Kazajistán", capital: "Astaná" },
-        { country: "Kenia", capital: "Nairobi" },
-        { country: "Kiribati", capital: "Tarawa" },
-        { country: "Corea del Norte", capital: "Pyongyang" },
-        { country: "Corea del Sur", capital: "Seúl" },
-        { country: "Kosovo", capital: "Pristina" },
-        { country: "Kuwait", capital: "Kuwait" },
-        { country: "Kirguistán", capital: "Biskek" },
-        { country: "Laos", capital: "Vientián" },
-        { country: "Letonia", capital: "Riga" },
-        { country: "Líbano", capital: "Beirut" },
-        { country: "Lesoto", capital: "Maseru" },
-        { country: "Liberia", capital: "Monrovia" },
-        { country: "Libia", capital: "Trípoli" },
-        { country: "Liechtenstein", capital: "Vaduz" },
-        { country: "Lituania", capital: "Vilna" },
-        { country: "Luxemburgo", capital: "Luxemburgo" },
-        { country: "Madagascar", capital: "Antananarivo" },
-        { country: "Malaui", capital: "Lilongüe" },
-        { country: "Malasia", capital: "Kuala Lumpur" },
-        { country: "Maldivas", capital: "Malé" },
-        { country: "Malí", capital: "Bamako" },
-        { country: "Malta", capital: "La Valeta" },
-        { country: "Islas Marshall", capital: "Majuro" },
-        { country: "Mauritania", capital: "Nuakchot" },
-        { country: "Mauricio", capital: "Port Louis" },
-        { country: "México", capital: "Ciudad de México" },
-        { country: "Micronesia", capital: "Palikir" },
-        { country: "Moldavia", capital: "Chisináu" },
-        { country: "Mónaco", capital: "Mónaco" },
-        { country: "Mongolia", capital: "Ulán Bator" },
-        { country: "Montenegro", capital: "Podgorica" },
-        { country: "Marruecos", capital: "Rabat" },
-        { country: "Mozambique", capital: "Maputo" },
-        { country: "Birmania", capital: "Naipyidó" },
-        { country: "Namibia", capital: "Windhoek" },
-        { country: "Nauru", capital: "Yaren" },
-        { country: "Nepal", capital: "Katmandú" },
-        { country: "Países Bajos", capital: "Ámsterdam" },
-        { country: "Nueva Zelanda", capital: "Wellington" },
-        { country: "Nicaragua", capital: "Managua" },
-        { country: "Níger", capital: "Niamey" },
-        { country: "Nigeria", capital: "Abuya" },
-        { country: "Macedonia del Norte", capital: "Skopie" },
-        { country: "Noruega", capital: "Oslo" },
-        { country: "Omán", capital: "Mascate" },
-        { country: "Pakistán", capital: "Islamabad" },
-        { country: "Palaos", capital: "Ngerulmud" },
-        { country: "Panamá", capital: "Ciudad de Panamá" },
-        { country: "Papúa Nueva Guinea", capital: "Port Moresby" },
-        { country: "Paraguay", capital: "Asunción" },
-        { country: "Perú", capital: "Lima" },
-        { country: "Filipinas", capital: "Manila" },
-        { country: "Polonia", capital: "Varsovia" },
-        { country: "Portugal", capital: "Lisboa" },
-        { country: "Catar", capital: "Doha" },
-        { country: "Rumania", capital: "Bucarest" },
-        { country: "Rusia", capital: "Moscú" },
-        { country: "Ruanda", capital: "Kigali" },
-        { country: "San Cristóbal y Nieves", capital: "Basseterre" },
-        { country: "San Vicente y las Granadinas", capital: "Kingstown" },
-        { country: "Santa Lucía", capital: "Castries" },
-        { country: "Samoa", capital: "Apia" },
-        { country: "San Marino", capital: "San Marino" },
-        { country: "Santo Tomé y Príncipe", capital: "Santo Tomé" },
-        { country: "Senegal", capital: "Dakar" },
-        { country: "Serbia", capital: "Belgrado" },
-        { country: "Seychelles", capital: "Victoria" },
-        { country: "Sierra Leona", capital: "Freetown" },
-        { country: "Singapur", capital: "Singapur" },
-        { country: "Eslovaquia", capital: "Bratislava" },
-        { country: "Eslovenia", capital: "Liubliana" },
-        { country: "Islas Salomón", capital: "Honiara" },
-        { country: "Somalia", capital: "Mogadiscio" },
-        { country: "Sudáfrica", capital: "Pretoria" },
-        { country: "Sudán del Sur", capital: "Yuba" },
-        { country: "Sudán", capital: "Jartum" },
-        { country: "Sri Lanka", capital: "Sri Jayawardenapura" },
-        { country: "Palestina", capital: "Jerusalén Este" },
-        { country: "Estados Unidos", capital: "Washington, D.C." },
-        { country: "Uruguay", capital: "Montevideo" },
-        { country: "Uzbekistán", capital: "Taskent" },
-        { country: "Vanuatu", capital: "Port Vila" },
-        { country: "Ciudad del Vaticano", capital: "Ciudad del Vaticano" },
-        { country: "Venezuela", capital: "Caracas" },
-        { country: "Vietnam", capital: "Hanói" },
-        { country: "Yemen", capital: "Saná" },
-        { country: "Zambia", capital: "Lusaka" },
-        { country: "Zimbabue", capital: "Harare" }
-      ];
-
-      function generateQuestion() {
-        const rnd = Math.floor(Math.random() * countries.length);
-        const item = countries[rnd];
-        correctAnswer = item.capital;
-        questionText = `¿Cuál es la capital de ${item.country}?`;
-        updateQuestionPanel();
-        createAnswerObjects(selectedNumAnswers, false);
-        beepPlayed = false;
-        currentQuestionStartTime = performance.now();
-      }
-
-      function createScoreDisplay() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256 * resolutionFactor;
-        canvas.height = 128 * resolutionFactor;
-        scoreMesh = createCanvasPlane(canvas, canvas.getContext('2d'), 0.6, 0.3);
-        scoreMesh.position.set(0, -0.2, -0.82);
-        scene.add(scoreMesh);
-      }
-      function updateScoreDisplay() {
-        if (!scoreMesh) return;
-        const { canvas, ctx, texture } = scoreMesh.userData;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(`Aciertos: ${correctCount} | Fallos: ${wrongCount}`, canvas.width / 2, canvas.height / 2);
-        texture.needsUpdate = true;
-      }
-      function startCountdown() {
-        gameStartTime = performance.now();
-        const canvas = document.createElement('canvas');
-        canvas.width = 256 * resolutionFactor;
-        canvas.height = 128 * resolutionFactor;
-        countdownMesh = createCanvasPlane(canvas, canvas.getContext('2d'), 0.6, 0.3);
-        countdownMesh.position.set(0, 0.50, -0.82);
-        scene.add(countdownMesh);
-      }
-      function updateCountdown() {
-        if (!countdownMesh) return;
-        const { canvas, ctx, texture } = countdownMesh.userData;
-        const elapsed = (performance.now() - gameStartTime) / 1000;
-        const remaining = Math.max(0, gameDuration - elapsed);
-        const seconds = Math.floor(remaining);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = (remaining <= 10) ? "red" : "#FFFFFF";
-        ctx.font = 'Bold ' + (64 * resolutionFactor) + 'px Arial';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(seconds < 10 ? "00:0" + seconds : "00:" + seconds, canvas.width / 2, canvas.height / 2);
-        texture.needsUpdate = true;
-        if (remaining <= -10 && !beepPlayed) {
-          const beepSound = document.getElementById('beepSound');
-          beepSound.currentTime = 0;
-          beepSound.play().catch(e => {});
-          beepPlayed = true;
-        }
-        return remaining;
-      }
-
-      function createSparksEffect(pos) {
-        if (!sparkTexture) {
-          const size = 128;
-          const c = document.createElement('canvas');
-          c.width = size; c.height = size;
-          const ctx = c.getContext('2d');
-          const grd = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-          grd.addColorStop(0, 'rgba(255,255,255,1)');
-          grd.addColorStop(1, 'rgba(255,255,255,0)');
-          ctx.fillStyle = grd;
-          ctx.fillRect(0, 0, size, size);
-          sparkTexture = new THREE.CanvasTexture(c);
-          sparkTexture.minFilter = THREE.LinearFilter;
-        }
-        const count = 100;
-        const positions = new Float32Array(count * 3);
-        const velocities = [];
-        for (let i = 0; i < count; i++) {
-          positions[i*3+0] = pos.x;
-          positions[i*3+1] = pos.y;
-          positions[i*3+2] = pos.z;
-          velocities.push(new THREE.Vector3(
-            (Math.random()-0.5)*0.5,
-            (Math.random()-0.5)*0.5,
-            (Math.random()-0.5)*0.5
-          ));
-        }
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        const mat = new THREE.PointsMaterial({
-          color: 0xffffff,
-          size: 0.02,
-          map: sparkTexture,
-          transparent: true,
-          opacity: 1.0,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending,
-          alphaTest: 0.5,
-        });
-        const points = new THREE.Points(geo, mat);
-        scene.add(points);
-        sparksSystems.push({
-          points,
-          velocities,
-          startTime: performance.now(),
-          lastUpdate: performance.now()
-        });
-      }
-
-      function animate() {
-        renderer.setAnimationLoop(render);
-      }
-      function render(timestamp, xrFrame) {
-        renderer.render(scene, camera);
-        answers.forEach((mesh, index) => {
-          if (mesh.userData.baseY === undefined) {
-            mesh.userData.baseY = mesh.position.y;
-          }
-          mesh.position.y = mesh.userData.baseY + 0.02 * Math.sin(timestamp * 0.005 + index);
-        });
-        if (gameReady && !countdownStarted) {
-          startCountdown();
-          const timerSound = document.getElementById('timerSound');
-          timerSound.loop = false;
-          timerSound.play().catch(e => {});
-          countdownStarted = true;
-        }
-        if (!gameOver) {
-          const remaining = updateCountdown();
-          updateScoreDisplay();
-          if (remaining <= 0) {
-            endGame();
-          }
-        }
-        const session = renderer.xr.getSession();
-        let interactionPoints = [];
-        if (session && xrFrame) {
-          for (const inputSource of session.inputSources) {
-            if (inputSource.hand) {
-              const indexTip = inputSource.hand.get('index-finger-tip');
-              if (indexTip) {
-                const jointPose = xrFrame.getJointPose(indexTip, renderer.xr.getReferenceSpace());
-                if (jointPose) {
-                  interactionPoints.push(new THREE.Vector3(
-                    jointPose.transform.position.x,
-                    jointPose.transform.position.y,
-                    jointPose.transform.position.z
-                  ));
-                }
-              }
-            }
-          }
-        }
-        if (interactionPoints.length === 0) {
-          let camPos = new THREE.Vector3();
-          camera.getWorldPosition(camPos);
-          interactionPoints.push(camPos);
-        }
-        if (!gameOver) {
-          for (let panel of answers) {
-            const panelPos = new THREE.Vector3();
-            panel.getWorldPosition(panelPos);
-            for (const pt of interactionPoints) {
-              const dist = panelPos.distanceTo(pt);
-              if (dist < collisionThreshold && !hasCollided) {
-                hasCollided = true;
-                if (panel.userData.answer === correctAnswer) {
-                  let responseTime = performance.now() - currentQuestionStartTime;
-                  correctResponseTimes.push(responseTime);
-                  correctCount++;
-                  playSound('successSound');
-                  createSparksEffect(panel.position);
-                  if (questionMesh) questionMesh.visible = false;
-                  answers.forEach(a => a.visible = false);
-                  setTimeout(() => {
-                    if (!gameOver) {
-                      generateQuestion();
-                      if (questionMesh) questionMesh.visible = true;
-                      answers.forEach(a => a.visible = true);
-                    }
-                    hasCollided = false;
-                  }, 1000);
-                } else {
-                  wrongCount++;
-                  playSound('errorSound');
-                  answers.forEach(a => a.material.color.set(0xff0000));
-                  setTimeout(() => {
-                    answers.forEach(a => a.material.color.set(0xffffff));
-                    hasCollided = false;
-                  }, 500);
-                }
-                break;
-              }
-            }
-          }
-        } else {
-          let finalButtons = [];
-          if (restartButtonMesh) finalButtons.push(restartButtonMesh);
-          if (scrollUpButtonMesh) finalButtons.push(scrollUpButtonMesh);
-          if (scrollDownButtonMesh) finalButtons.push(scrollDownButtonMesh);
-          for (const btn of finalButtons) {
-            if (!btn.visible) continue;
-            const btnPos = new THREE.Vector3();
-            btn.getWorldPosition(btnPos);
-            for (const pt of interactionPoints) {
-              if (btnPos.distanceTo(pt) < collisionThreshold && !hasCollided) {
-                hasCollided = true;
-                if (btn === restartButtonMesh) {
-                  playSound('successSound');
-                  createSparksEffect(btn.position);
-                  btn.visible = false;
-                  setTimeout(() => {
-                    restartGame();
-                    hasCollided = false;
-                  }, 1000);
-                } else if (btn === scrollUpButtonMesh) {
-                  scoreboardStartIndex -= pageSize;
-                  if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-                  drawLeaderboardSegment();
-                  setTimeout(() => { hasCollided = false; }, 500);
-                } else if (btn === scrollDownButtonMesh) {
-                  scoreboardStartIndex += pageSize;
-                  if (scoreboardStartIndex >= leaderboardResults.length) {
-                    scoreboardStartIndex = leaderboardResults.length - pageSize;
-                    if (scoreboardStartIndex < 0) scoreboardStartIndex = 0;
-                  }
-                  drawLeaderboardSegment();
-                  setTimeout(() => { hasCollided = false; }, 500);
-                }
-                return;
-              }
-            }
-          }
-        }
-        const now = performance.now();
-        for (let i = sparksSystems.length - 1; i >= 0; i--) {
-          const sys = sparksSystems[i];
-          const dt = (now - sys.lastUpdate) / 1000;
-          sys.lastUpdate = now;
-          const posArray = sys.points.geometry.attributes.position.array;
-          for (let j = 0; j < sys.velocities.length; j++) {
-            posArray[j * 3 + 0] += sys.velocities[j].x * dt;
-            posArray[j * 3 + 1] += sys.velocities[j].y * dt;
-            posArray[j * 3 + 2] += sys.velocities[j].z * dt;
-          }
-          sys.points.geometry.attributes.position.needsUpdate = true;
-          let life = now - sys.startTime;
-          if (life > 1700) {
-            let fadeTime = life - 1700;
-            let fadeFactor = Math.max(0, 1 - (fadeTime / 300));
-            sys.points.material.opacity = fadeFactor;
-          }
-          if (life > 2000) {
-            scene.remove(sys.points);
-            sparksSystems.splice(i, 1);
-          }
-        }
-      }
-
-      function restartGame() {
-        if (leaderboardMesh) scene.remove(leaderboardMesh);
-        if (restartButtonMesh) scene.remove(restartButtonMesh);
-        if (scrollUpButtonMesh) scene.remove(scrollUpButtonMesh);
-        if (scrollDownButtonMesh) scene.remove(scrollDownButtonMesh);
-        leaderboardMesh = null;
-        restartButtonMesh = null;
-        scrollUpButtonMesh = null;
-        scrollDownButtonMesh = null;
-        leaderboardResults = [];
-        scoreboardStartIndex = 0;
-        playerPosition = null;
-        if (questionMesh) {
-          scene.remove(questionMesh);
-          questionMesh = null;
-        }
-        correctCount = 0;
-        wrongCount = 0;
-        gameOver = false;
-        answers.forEach(a => scene.remove(a));
-        answers = [];
-        createAnswerObjects(selectedNumAnswers, true);
-        generateQuestion();
-        countdownStarted = false;
-        gameReady = true;
-        createScoreDisplay();
-        const timerSound = document.getElementById('timerSound');
-        timerSound.currentTime = 0;
-        timerSound.loop = false;
-        timerSound.play().catch(e => {});
-      }
-
-      function createLeaderboardMesh() {
-        if (leaderboardMesh) scene.remove(leaderboardMesh);
-        if (restartButtonMesh) scene.remove(restartButtonMesh);
-        if (scrollUpButtonMesh) scene.remove(scrollUpButtonMesh);
-        if (scrollDownButtonMesh) scene.remove(scrollDownButtonMesh);
-        const dummyCanvas = document.createElement('canvas');
-        dummyCanvas.width = 512;
-        dummyCanvas.height = 512;
-        const ctx = dummyCanvas.getContext('2d');
-        const lbTexture = new THREE.CanvasTexture(dummyCanvas);
-        lbTexture.minFilter = THREE.LinearFilter;
-        lbTexture.magFilter = THREE.LinearFilter;
-        const planeWidth = 1.2;
-        const planeHeight = 1.0;
-        const lbGeometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-        const lbMaterial = new THREE.MeshBasicMaterial({ map: lbTexture, transparent: true });
-        leaderboardMesh = new THREE.Mesh(lbGeometry, lbMaterial);
-        leaderboardMesh.userData = { canvas: dummyCanvas, ctx, texture: lbTexture, planeWidth, planeHeight };
-        leaderboardMesh.position.set(0, 0, -1.2);
-        scene.add(leaderboardMesh);
-        restartButtonMesh = createButton("Reiniciar");
-        restartButtonMesh.position.set(0, -0.8, -1.1);
-        scene.add(restartButtonMesh);
-        scrollUpButtonMesh = createButton("▲", 0.1, 0.1);
-        scrollUpButtonMesh.position.set(-planeWidth * 0.5 - 0.1, planeHeight * 0.35, -1.1);
-        scene.add(scrollUpButtonMesh);
-        scrollDownButtonMesh = createButton("▼", 0.1, 0.1);
-        scrollDownButtonMesh.position.set(-planeWidth * 0.5 - 0.1, -planeHeight * 0.35, -1.1);
-        scene.add(scrollDownButtonMesh);
-      }
-
-      function drawLeaderboardSegment() {
-        if (!leaderboardMesh) return;
-        const { canvas, ctx, texture, planeWidth } = leaderboardMesh.userData;
-        const subset = leaderboardResults.slice(scoreboardStartIndex, scoreboardStartIndex + pageSize);
-        const lineHeight = 40 * resolutionFactor;
-        const extraLines = 4;
-        const canvasWidth = 512 * resolutionFactor;
-        const canvasHeight = lineHeight * (subset.length + extraLines);
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
-        ctx.fillStyle = "rgba(0,0,0,0.7)";
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = 'Bold ' + (28 * resolutionFactor) + 'px Arial';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(`Tabla de Clasificación`, canvasWidth / 2, lineHeight);
-        const xPosPos   = 0.10 * canvasWidth;
-        const xPosName  = 0.40 * canvasWidth;
-        const xPosScore = 0.75 * canvasWidth;
-        let startY = lineHeight * 2.5;
-        ctx.font = 'Bold ' + (24 * resolutionFactor) + 'px Arial';
-        ctx.textAlign = "left";
-        ctx.fillText("Pos", xPosPos, startY);
-        ctx.fillText("Nombre", xPosName, startY);
-        ctx.fillText("Puntos", xPosScore, startY);
-        let yPos = startY + (1.5 * lineHeight);
-        for (let i = 0; i < subset.length; i++) {
-          const data = subset[i];
-          const realPos = data._index + 1;
-          if (playerPosition !== null && realPos === playerPosition) {
-            ctx.fillStyle = "green";
-            ctx.fillRect(0, yPos - lineHeight * 0.6, canvasWidth, lineHeight);
-            ctx.fillStyle = "#FFFFFF";
-          } else {
-            ctx.fillStyle = "#FFFFFF";
-          }
-          ctx.fillText(String(realPos), xPosPos, yPos);
-          ctx.fillText(data.name, xPosName, yPos);
-          ctx.fillText(String(data.score), xPosScore, yPos);
-          yPos += lineHeight;
-        }
-        if (playerPosition !== null) {
-          ctx.textAlign = "center";
-          ctx.fillText(`Tu posición: ${playerPosition}`, canvasWidth / 2, yPos + lineHeight);
-        }
-        texture.needsUpdate = true;
-        const planeHeight = planeWidth * (canvasHeight / canvasWidth);
-        leaderboardMesh.geometry.dispose();
-        leaderboardMesh.geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-        leaderboardMesh.position.set(0, 0.0, -1.2);
-        restartButtonMesh.position.set(0, -planeHeight * 0.6, -1.1);
-        scrollUpButtonMesh.position.set(-planeWidth * 0.5 - 0.1, planeHeight * 0.35, -1.1);
-        scrollDownButtonMesh.position.set(-planeWidth * 0.5 - 0.1, -planeHeight * 0.35, -1.1);
-      }
-
-      /***** 4) Funciones para el modo HTML (no AR) *****/
-      function initHTML() {
-        // Crear contenedor HTML para el juego
-        const gameContainer = document.createElement('div');
-        gameContainer.id = 'gameContainer';
-        document.body.appendChild(gameContainer);
-
-        // Elemento para la pregunta
-        const questionDiv = document.createElement('div');
-        questionDiv.id = 'question';
-        questionDiv.style.fontSize = '32px';
-        gameContainer.appendChild(questionDiv);
-
-        // Contenedor de respuestas
-        const answersDiv = document.createElement('div');
-        answersDiv.id = 'answers';
-        answersDiv.style.display = 'flex';
-        answersDiv.style.flexWrap = 'wrap';
-        answersDiv.style.gap = '10px';
-        gameContainer.appendChild(answersDiv);
-
-        // Countdown
-        const countdownDiv = document.createElement('div');
-        countdownDiv.id = 'countdown';
-        countdownDiv.style.fontSize = '24px';
-        gameContainer.appendChild(countdownDiv);
-
-        // Score
-        const scoreDiv = document.createElement('div');
-        scoreDiv.id = 'score';
-        scoreDiv.style.fontSize = '24px';
-        gameContainer.appendChild(scoreDiv);
-
-        // Leaderboard
-        const leaderboardDiv = document.createElement('div');
-        leaderboardDiv.id = 'leaderboard';
-        leaderboardDiv.style.maxWidth = "auto";
-        leaderboardDiv.style.maxHeight = "120px";
-        leaderboardDiv.style.overflowY = "auto";
-        leaderboardDiv.style.backgroundColor = "#fff";
-        leaderboardDiv.style.color = "#000";
-        leaderboardDiv.style.fontSize = "12px";
-        leaderboardDiv.style.border = "1px solid #000";
-        leaderboardDiv.style.borderRadius = "6px";
-        leaderboardDiv.style.padding = "4px";
-        gameContainer.appendChild(leaderboardDiv);
-
-        startHTMLGame();
-      }
-
-      let htmlCountdownInterval;
-      function startHTMLGame() {
-        correctCount = 0;
-        wrongCount = 0;
-        gameOver = false;
-        correctResponseTimes = [];
-        gameStartTime = performance.now();
-        // En modo HTML ya se leyó el nombre del jugador antes de quitar el overlay,
-        // por lo que usamos el valor que ya quedó almacenado en la variable global "playerName".
-        startHTMLCountdown();
-        const timerSound = document.getElementById('timerSound');
-        timerSound.loop = false;
-        timerSound.play().catch(e => {});
-        nextHTMLQuestion();
-        updateHTMLScore();
-      }
-
-      function nextHTMLQuestion() {
-        generateHTMLQuestion();
-        updateHTMLQuestion();
-        createHTMLAnswerButtons();
-      }
-
-      function generateHTMLQuestion() {
-        const rnd = Math.floor(Math.random() * countries.length);
-        const item = countries[rnd];
-        correctAnswer = item.capital;
-        questionText = `¿Cuál es la capital de ${item.country}?`;
-        currentQuestionStartTime = performance.now();
-      }
-
-      function updateHTMLQuestion() {
-        const questionDiv = document.getElementById('question');
-        questionDiv.innerText = questionText;
-      }
-
-      function createHTMLAnswerButtons() {
-        const answersDiv = document.getElementById('answers');
-        answersDiv.innerHTML = '';
-        const wrongSet = new Set();
-        while(wrongSet.size < (selectedNumAnswers - 1)) {
-          const rnd = Math.floor(Math.random() * countries.length);
-          const cand = countries[rnd].capital;
-          if(cand !== correctAnswer) {
-            wrongSet.add(cand);
-          }
-        }
-        const array = [correctAnswer, ...wrongSet];
-        array.sort(() => Math.random() - 0.5);
-        array.forEach(ans => {
-          const btn = document.createElement('button');
-          btn.innerText = ans;
-          btn.style.fontSize = '24px';
-          btn.style.padding = '10px 20px';
-          btn.onclick = () => handleHTMLAnswer(ans, btn);
-          answersDiv.appendChild(btn);
-        });
-      }
-
-      function handleHTMLAnswer(selected, btn) {
-        if(gameOver) return;
-        if(selected === correctAnswer) {
-          btn.style.backgroundColor = "lightgreen";
-          let responseTime = performance.now() - currentQuestionStartTime;
-          correctResponseTimes.push(responseTime);
-          correctCount++;
-          updateHTMLScore();
-          const successSound = document.getElementById('successSound');
-          const clone = successSound.cloneNode();
-          clone.play().catch(e => {});
-          setTimeout(() => {
-            btn.style.backgroundColor = "";
-            nextHTMLQuestion();
-          }, 1000);
-        } else {
-          btn.style.backgroundColor = "red";
-          wrongCount++;
-          updateHTMLScore();
-          const errorSound = document.getElementById('errorSound');
-          const clone = errorSound.cloneNode();
-          clone.play().catch(e => {});
-          setTimeout(() => {
-            btn.style.backgroundColor = "";
-          }, 500);
-        }
-      }
-
-      function startHTMLCountdown() {
-        if(htmlCountdownInterval) clearInterval(htmlCountdownInterval);
-        htmlCountdownInterval = setInterval(()=>{
-          const elapsed = (performance.now() - gameStartTime)/1000;
-          const remaining = Math.max(0, gameDuration - elapsed);
-          document.getElementById('countdown').innerText = `Tiempo: ${Math.floor(remaining)}`;
-          if(remaining <= 0) {
-            clearInterval(htmlCountdownInterval);
-            endHTMLGame();
-          }
-        }, 1000);
-      }
-
-      function updateHTMLScore() {
-        document.getElementById('score').innerText = `Aciertos: ${correctCount} | Fallos: ${wrongCount}`;
-      }
-
-      async function endHTMLGame() {
-        gameOver = true;
-        let avgTime = 0;
-        if(correctResponseTimes.length > 0) {
-          let sum = correctResponseTimes.reduce((acc, t) => acc + t, 0);
-          avgTime = sum / correctResponseTimes.length / 1000;
-        }
-        const rawScore = (correctCount - wrongCount) - avgTime;
-        const finalScore = parseFloat(rawScore.toFixed(3));
-        const collectionName = `Capleaderboard_${selectedNumAnswers}`;
-        let docsFound = await getDocs(
-          query(
-            collection(db, collectionName),
-            where("name", "==", playerName),
-            limit(1)
-          )
-        );
-        if(!docsFound.empty) {
-          const docToUpdate = docsFound.docs[0];
-          await updateDoc(doc(db, collectionName, docToUpdate.id), {
-            score: finalScore,
-            timestamp: serverTimestamp()
-          });
-        } else {
-          await addDoc(collection(db, collectionName), {
-            name: playerName,
-            score: finalScore,
-            timestamp: serverTimestamp()
-          });
-        }
-        let qLeaderboard = query(
-          collection(db, collectionName),
-          orderBy("score", "desc")
-        );
-        let querySnapshot;
-        try {
-          querySnapshot = await getDocs(qLeaderboard);
-        } catch(err) {
-          console.error("Error consultando leaderboard:", err);
-          return;
-        }
-        let results = [];
-        let idx = 0;
-        querySnapshot.forEach(docSnap=>{
-          let data = docSnap.data();
-          results.push({ ...data, _index: idx });
-          idx++;
-        });
-        displayHTMLLeaderboard(results, finalScore);
-        const gameContainer = document.getElementById('gameContainer');
-        const restartBtn = document.createElement('button');
-        restartBtn.innerText = "Reiniciar";
-        restartBtn.style.fontSize = '24px';
-        restartBtn.style.padding = '10px 20px';
-        restartBtn.onclick = ()=>{
-          restartBtn.remove();
-          document.getElementById('leaderboard').innerHTML = '';
-          document.getElementById('question').innerText = '';
-          document.getElementById('answers').innerHTML = '';
-          startHTMLGame();
-        };
-        gameContainer.appendChild(restartBtn);
-      }
-
-      function displayHTMLLeaderboard(leaderboardResults, finalScore) {
-        const leaderboardDiv = document.getElementById('leaderboard');
-        leaderboardDiv.innerHTML = '';
-        const table = document.createElement('table');
-        table.style.width = "100px"; // Ancho fijo de la tabla
-        const headerRow = document.createElement('tr');
-        ['Pos', 'Nombre', 'Puntos'].forEach(header => {
-          const th = document.createElement('th');
-          th.innerText = header;
-          headerRow.appendChild(th);
-        });
-        table.appendChild(headerRow);
-        leaderboardResults.forEach((data, index) => {
-          const row = document.createElement('tr');
-          if (data.name === playerName && data.score === finalScore) {
-            row.style.backgroundColor = 'green';
-            row.style.color = '#fff';
-          }
-          const posCell = document.createElement('td');
-          posCell.innerText = index + 1;
-          const nameCell = document.createElement('td');
-          nameCell.innerText = data.name;
-          const scoreCell = document.createElement('td');
-          scoreCell.innerText = data.score;
-          row.appendChild(posCell);
-          row.appendChild(nameCell);
-          row.appendChild(scoreCell);
-          table.appendChild(row);
-        });
-        leaderboardDiv.appendChild(table);
-      }
-
-      /***** 5) Inicio: Comprobación de soporte AR y elección de modo *****/
-      window.addEventListener('DOMContentLoaded', async () => {
-        // Comprobar soporte AR
-        let arSupported = false;
-        if(navigator.xr) {
-          try {
-            arSupported = await navigator.xr.isSessionSupported('immersive-ar');
-          } catch(e) {
-            arSupported = false;
-          }
-        }
-        if(arSupported) {
-          // Iniciar modo AR
-          init();
-          animate();
-        } else {
-          // Si AR no es soportado, mostrar overlay con botón para HTML
-          const overlay = document.createElement('div');
-          overlay.id = 'overlay';
-          overlay.innerHTML = `
-            <img src="ARCapitals2.jpeg" alt="ARCapitals" style="margin-bottom:20px; margin-top:10px;">
-            <a href="https://www.youtube.com/@rafgim" target="_blank">© By Rafael Gimeno</a>
-            <div class="respuestas-container">
-              <label for="numAnswers">Respuestas:</label>
-              <select id="numAnswers">
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="6">6</option>
-                <option value="7">7</option>
-                <option value="8">8</option>
-                <option value="9">9</option>
-                <option value="10">10</option>
-              </select>
-            </div>
-            <div id="leaderboardPreview"></div>
-            <input type="text" id="playerName" placeholder="Ingresa tu nombre" style="padding:10px; font-size:16px; margin-bottom:20px;" maxlength="10">
-          `;
-          document.body.appendChild(overlay);
-          document.getElementById('numAnswers').addEventListener('change', () => {
-            const num = parseInt(document.getElementById('numAnswers').value) || 4;
-            updateLeaderboardPreview(num);
-          });
-          updateLeaderboardPreview(4);
-          // Al iniciar el juego HTML actualizamos selectedNumAnswers y el nombre del jugador
-          const startBtn = document.createElement('button');
-          startBtn.innerText = "AR no compatible, Iniciar Juego HTML";
-          startBtn.style.fontSize = "16px";
-          startBtn.style.padding = "10px 20px";
-          startBtn.style.marginTop = "20px";
-          startBtn.onclick = () => {
-            selectedNumAnswers = parseInt(document.getElementById('numAnswers').value) || 4;
-            playerName = document.getElementById('playerName').value || "Jugador";
-            overlay.remove();
-            initHTML();
           };
-          overlay.appendChild(startBtn);
-        }
-        // Desbloquear audio en primer toque
-        window.addEventListener('touchstart', function unlockAudio() {
-          const audios = [document.getElementById('successSound'), document.getElementById('errorSound')];
-          audios.forEach(audioEl => {
-            audioEl.play().then(() => {
-              audioEl.pause();
-              audioEl.currentTime = 0;
-            }).catch(e => {});
-          });
-        }, { once: true });
+          reader.readAsBinaryString(new Blob([data]));
+          document.getElementById('fileName').textContent = fileName;
+        })
+        .catch(error => console.error("Error al cargar el MIDI:", error));
+    }
+
+    // Cargar MIDI por defecto
+    function loadDefaultMidi() {
+      const defaultMidiUrl = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/Handel & Halvorsen Passacaglia.mid";
+      const defaultFileName = "Handel & Halvorsen Passacaglia.mid";
+      loadMidiFromUrl(defaultMidiUrl, defaultFileName);
+    }
+
+    // Extraer notas del archivo MIDI
+    function extractNotesFromMidi(midi) {
+      notesToPlay = [];
+      currentNoteIndex = 0;
+      var absoluteTime = 0;
+      midi.tracks.forEach(track => {
+        absoluteTime = 0;
+        track.forEach(event => {
+          if (event.deltaTime) {
+            absoluteTime += event.deltaTime;
+          }
+          if (event.subtype === 'noteOn') {
+            notesToPlay.push({
+              noteNumber: event.noteNumber,
+              time: absoluteTime
+            });
+          }
+        });
       });
-    </script>
-  </body>
+      notesToPlay.sort((a, b) => a.time - b.time);
+      console.log("Notas MIDI extraídas:", notesToPlay);
+    }
+
+    // Selector de canciones de muestra
+    document.getElementById('sampleSongs').addEventListener('change', function() {
+      if (this.value) {
+        const fileName = this.value;
+        const url = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/" + encodeURIComponent(fileName);
+        loadMidiFromUrl(url, fileName);
+      }
+    });
+
+    // Función auxiliar para generar un color aleatorio
+    function getRandomColor() {
+      return '#' + Math.floor(Math.random() * 16777215).toString(16);
+    }
+
+    // Manejo de eventos de toque/puntero en vista normal
+
+    // Al presionar (pointerdown o touchstart)
+    function handlePointerDown(e) {
+      // Evitar múltiples disparos con mouse
+      if (e.pointerType === "mouse" && e.buttons !== 1) return;
+      
+      // Obtener posición y calcular gain
+      var rect = e.currentTarget.getBoundingClientRect();
+      var y = e.clientY;
+      var relativeY = (y - rect.top) / rect.height;
+      var effectiveGain = computeEffectiveGain(relativeY);
+      
+      // Generar un color aleatorio y asignarlo al fondo
+      var randomColor = getRandomColor();
+      document.body.style.backgroundColor = randomColor;
+      
+      // Obtener el contenedor de las franjas
+      var dynamicContainer = document.getElementById('dynamicMarkingsContainer');
+      var rows = dynamicContainer.children;
+      
+      // Reiniciar todas las filas a negro
+      for (var i = 0; i < rows.length; i++) {
+        rows[i].style.backgroundColor = 'black';
+      }
+      
+      // Determinar cuál fila fue tocada según la posición
+      var containerRect = dynamicContainer.getBoundingClientRect();
+      var relativeYInContainer = (e.clientY - containerRect.top) / containerRect.height;
+      var rowIndex = Math.floor(relativeYInContainer * rows.length);
+      if (rowIndex < 0 || rowIndex >= rows.length) {
+        rowIndex = 0;
+      }
+      // Asignar el color aleatorio a la fila tocada
+      rows[rowIndex].style.backgroundColor = randomColor;
+      
+      // Reproducir nota(s)
+      var notesArray = [];
+      if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
+        var groupThreshold = 0.001;
+        var groupEnd = currentNoteIndex + 1;
+        while (groupEnd < notesToPlay.length &&
+               Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
+          groupEnd++;
+        }
+        for (var i = currentNoteIndex; i < groupEnd; i++) {
+          var note = notesToPlay[i];
+          if (pedalOn) {
+            playPianoNote(effectiveGain, note.noteNumber);
+          } else {
+            notesArray.push(playNoteNonPedal(effectiveGain, note.noteNumber));
+          }
+        }
+        currentNoteIndex = groupEnd;
+        if (currentNoteIndex >= notesToPlay.length) {
+          currentNoteIndex = 0;
+        }
+      } else {
+        if (pedalOn) {
+          playPianoNote(effectiveGain, defaultMidiNote);
+        } else {
+          notesArray.push(playNoteNonPedal(effectiveGain, defaultMidiNote));
+        }
+      }
+      if (!pedalOn) {
+        activeNotes[e.pointerId] = notesArray;
+      }
+    }
+
+    // Al levantar el dedo (pointerup o touchend)
+    function handlePointerUp(e) {
+      if (!pedalOn && activeNotes[e.pointerId]) {
+        activeNotes[e.pointerId].forEach(function(noteObj) {
+          noteObj.stop();
+        });
+        delete activeNotes[e.pointerId];
+      }
+    }
+
+    // Asignación de eventos en vista normal
+    var touchBox = document.getElementById('touchBox');
+    if (window.PointerEvent) {
+      touchBox.addEventListener('pointerdown', handlePointerDown);
+      touchBox.addEventListener('pointerup', handlePointerUp);
+      touchBox.addEventListener('pointercancel', handlePointerUp);
+    } else {
+      // Fallback para dispositivos táctiles
+      touchBox.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        Array.from(e.changedTouches).forEach(function(touch) {
+          var fakeEvent = {
+            clientY: touch.clientY,
+            currentTarget: e.currentTarget,
+            pointerId: "touch-" + touch.identifier,
+            pointerType: "touch",
+            target: e.target
+          };
+          handlePointerDown(fakeEvent);
+        });
+      });
+      touchBox.addEventListener('touchend', function(e) {
+        Array.from(e.changedTouches).forEach(function(touch) {
+          var fakeEvent = {
+            pointerId: "touch-" + touch.identifier,
+            pointerType: "touch",
+            target: e.target
+          };
+          handlePointerUp(fakeEvent);
+        });
+      });
+      touchBox.addEventListener('click', handlePointerDown);
+    }
+
+    // Reanudar AudioContext en caso de suspensión
+    document.addEventListener('click', function() {
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          console.log("AudioContext reanudado");
+        });
+      }
+    });
+
+    // Botón de pantalla completa
+    var fullscreenBtn = document.getElementById('fullscreenBtn');
+    fullscreenBtn.addEventListener('click', function(e) {
+      var elem = document.getElementById('container');
+      if (!document.fullscreenElement) {
+        elem.requestFullscreen().then(() => {
+          fullscreenBtn.textContent = "×";
+        }).catch(err => {
+          console.error("Error al activar pantalla completa:", err);
+        });
+      } else {
+        document.exitFullscreen().then(() => {
+          fullscreenBtn.textContent = "⛶";
+        });
+      }
+      e.stopPropagation();
+    });
+    document.addEventListener('fullscreenchange', function() {
+      if (!document.fullscreenElement) {
+        fullscreenBtn.textContent = "⛶";
+      }
+    });
+
+    // Botón de Pedal para alternar modo
+    var pedalBtn = document.getElementById('pedalBtn');
+    pedalBtn.addEventListener('click', function() {
+      pedalOn = !pedalOn;
+      pedalBtn.textContent = pedalOn ? "Pedal ON" : "Pedal OFF";
+      if (pedalOn) {
+        pedalBtn.style.backgroundColor = "#90EE90"; // Verde claro
+      } else {
+        pedalBtn.style.backgroundColor = "#ADD8E6"; // Azul claro original
+      }
+      console.log("Pedal:", pedalOn ? "ON" : "OFF");
+    });
+
+    // Cargar MIDI por defecto al iniciar
+    window.addEventListener('load', loadDefaultMidi);
+
+    // =========================
+    // CÓDIGO PARA MODO AR
+    // =========================
+
+    // Verificar soporte de WebXR para AR
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported('immersive-ar').then(function(supported) {
+        if (!supported) {
+          document.getElementById('arBtn').disabled = true;
+          document.getElementById('arBtn').textContent = "AR No Disponible";
+        }
+      });
+    } else {
+      document.getElementById('arBtn').disabled = true;
+      document.getElementById('arBtn').textContent = "AR No Disponible";
+    }
+
+    // Variables globales para la escena AR
+    let arRenderer, arScene, arCamera, arPanels = [];
+    let raycaster = new THREE.Raycaster();
+    let pointer = new THREE.Vector2();
+
+    // Mapeo de matices a valores de gain para AR
+    const dynamicMarkings = [
+      { text: "Fortissimo", gain: 1.0 },
+      { text: "Forte", gain: 0.8 },
+      { text: "Mezzo-forte", gain: 0.6 },
+      { text: "Mezzo-piano", gain: 0.4 },
+      { text: "Piano", gain: 0.2 },
+      { text: "Pianissimo", gain: 0.1 }
+    ];
+
+    // Función para crear un panel con texto (usando canvas como textura)
+    function createPanel(text) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 128;
+      const context = canvas.getContext('2d');
+      context.fillStyle = 'black';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.font = '48px sans-serif';
+      context.fillStyle = 'white';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(text, canvas.width / 2, canvas.height / 2);
+      const texture = new THREE.CanvasTexture(canvas);
+      const geometry = new THREE.PlaneGeometry(0.5, 0.25);
+      const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+      const panel = new THREE.Mesh(geometry, material);
+      panel.userData = { text: text };
+      return panel;
+    }
+
+    // Inicializar la escena AR
+    function initAR() {
+      // Crear renderer para AR
+      arRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      arRenderer.setSize(window.innerWidth, window.innerHeight);
+      arRenderer.xr.enabled = true;
+      document.getElementById('arContainer').appendChild(arRenderer.domElement);
+
+      // Crear escena y cámara
+      arScene = new THREE.Scene();
+      arCamera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+      // Crear paneles y agregarlos a la escena, dispuestos verticalmente
+      const startY = 0.5;
+      const gap = 0.3;
+      dynamicMarkings.forEach((item, index) => {
+        let panel = createPanel(item.text);
+        panel.position.set(0, startY - index * gap, -2); // posicionados frente a la cámara
+        panel.userData.gain = item.gain;
+        arScene.add(panel);
+        arPanels.push(panel);
+      });
+
+      // Luz ambiental para la escena
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      light.position.set(0, 1, 0);
+      arScene.add(light);
+
+      // Escuchar eventos pointer sobre el canvas AR
+      arRenderer.domElement.addEventListener('pointerdown', onARPointerDown, false);
+
+      // Iniciar el loop de renderizado AR
+      arRenderer.setAnimationLoop(renderAR);
+    }
+
+    // Loop de renderizado AR
+    function renderAR() {
+      arRenderer.render(arScene, arCamera);
+    }
+
+    // Manejar eventos pointer en AR: detectar intersección con paneles
+    function onARPointerDown(event) {
+      // Calcular posición normalizada del puntero
+      pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+      // Actualizar el raycaster
+      raycaster.setFromCamera(pointer, arCamera);
+      // Verificar intersección con los paneles
+      const intersects = raycaster.intersectObjects(arPanels);
+      if (intersects.length > 0) {
+        const panel = intersects[0].object;
+        // Resaltar el panel brevemente
+        const originalColor = panel.material.color.getHex();
+        panel.material.color.setHex(0xffff00);
+        setTimeout(() => {
+          panel.material.color.setHex(0xffffff);
+        }, 200);
+        // Reproducir nota usando el gain definido en el panel y el defaultMidiNote
+        if (pedalOn) {
+          playPianoNote(panel.userData.gain, defaultMidiNote);
+        } else {
+          playNoteNonPedal(panel.userData.gain, defaultMidiNote);
+        }
+      }
+    }
+
+    // Iniciar modo AR al pulsar el botón "AR"
+    document.getElementById('arBtn').addEventListener('click', function() {
+      // Ocultar la UI principal y mostrar el contenedor AR
+      document.getElementById('container').style.display = 'none';
+      document.getElementById('arContainer').style.display = 'block';
+      // Inicializar la escena AR
+      initAR();
+      // Solicitar sesión AR (immersive-ar con hit-test)
+      navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'] })
+      .then(function(session) {
+        arRenderer.xr.setSession(session);
+      })
+      .catch(function(error) {
+        console.error("Error al iniciar sesión AR:", error);
+      });
+    });
+
+    // Salir del modo AR al pulsar "Salir AR"
+    document.getElementById('exitArBtn').addEventListener('click', function() {
+      // Finalizar la sesión AR
+      let session = arRenderer.xr.getSession();
+      if (session) {
+        session.end();
+      }
+      // Remover el canvas AR y sus eventos
+      if (arRenderer && arRenderer.domElement) {
+        arRenderer.domElement.removeEventListener('pointerdown', onARPointerDown);
+        document.getElementById('arContainer').removeChild(arRenderer.domElement);
+      }
+      // Ocultar contenedor AR y mostrar la UI principal
+      document.getElementById('arContainer').style.display = 'none';
+      document.getElementById('container').style.display = 'flex';
+    });
+  </script>
+</body>
 </html>
