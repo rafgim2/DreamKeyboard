@@ -258,7 +258,7 @@
       return noteNames[midi % 12] + octave;
     }
 
-    // Cálculo del gain según posición vertical
+    // Cálculo del gain según posición vertical (usado en HTML)
     function computeEffectiveGain(relativeY) {
       var minGain = 0.15;
       var maxGain = 1.0;
@@ -393,48 +393,35 @@
       }
     });
 
-    // Función auxiliar para generar un color aleatorio
-    function getRandomColor() {
-      return '#' + Math.floor(Math.random() * 16777215).toString(16);
-    }
-
     // Manejo de eventos de toque/puntero en la interfaz tradicional
 
     // Al presionar (pointerdown o touchstart)
     function handlePointerDown(e) {
-      // Evitar múltiples disparos con mouse
       if (e.pointerType === "mouse" && e.buttons !== 1) return;
       
-      // Obtener posición y calcular gain
       var rect = e.currentTarget.getBoundingClientRect();
       var y = e.clientY;
       var relativeY = (y - rect.top) / rect.height;
       var effectiveGain = computeEffectiveGain(relativeY);
       
-      // Generar un color aleatorio y asignarlo al fondo
       var randomColor = getRandomColor();
       document.body.style.backgroundColor = randomColor;
       
-      // Obtener el contenedor de las franjas
       var dynamicContainer = document.getElementById('dynamicMarkingsContainer');
       var rows = dynamicContainer.children;
       
-      // Reiniciar todas las filas a negro
       for (var i = 0; i < rows.length; i++) {
         rows[i].style.backgroundColor = 'black';
       }
       
-      // Determinar cuál fila fue tocada según la posición
       var containerRect = dynamicContainer.getBoundingClientRect();
       var relativeYInContainer = (e.clientY - containerRect.top) / containerRect.height;
       var rowIndex = Math.floor(relativeYInContainer * rows.length);
       if (rowIndex < 0 || rowIndex >= rows.length) {
         rowIndex = 0;
       }
-      // Asignar el color aleatorio a la fila tocada
       rows[rowIndex].style.backgroundColor = randomColor;
       
-      // Reproducir nota(s)
       var notesArray = [];
       if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
         var groupThreshold = 0.001;
@@ -477,14 +464,12 @@
       }
     }
 
-    // Asignación de eventos para la interfaz tradicional
     var touchBox = document.getElementById('touchBox');
     if (window.PointerEvent) {
       touchBox.addEventListener('pointerdown', handlePointerDown);
       touchBox.addEventListener('pointerup', handlePointerUp);
       touchBox.addEventListener('pointercancel', handlePointerUp);
     } else {
-      // Fallback para dispositivos táctiles
       touchBox.addEventListener('touchstart', function(e) {
         e.preventDefault();
         Array.from(e.changedTouches).forEach(function(touch) {
@@ -548,16 +533,51 @@
     pedalBtn.addEventListener('click', function() {
       pedalOn = !pedalOn;
       pedalBtn.textContent = pedalOn ? "Pedal ON" : "Pedal OFF";
-      if (pedalOn) {
-        pedalBtn.style.backgroundColor = "#90EE90"; // Verde claro
-      } else {
-        pedalBtn.style.backgroundColor = "#ADD8E6"; // Azul claro original
-      }
+      pedalBtn.style.backgroundColor = pedalOn ? "#90EE90" : "#ADD8E6";
       console.log("Pedal:", pedalOn ? "ON" : "OFF");
     });
 
     // Cargar MIDI por defecto al iniciar
     window.addEventListener('load', loadDefaultMidi);
+
+    // Función global para manejar la selección de panel en AR.
+    // Se calcula el gain en función del índice del panel (de 0 a 5, siendo 0 fortísimo y 5 pianísimo)
+    window.handleARPanelSelect = function(panelIndex) {
+      const minGain = 0.15, maxGain = 1.0;
+      // Calcular effectiveGain linealmente: panel 0 → 1.0; panel 5 → 0.15
+      const effectiveGain = maxGain - (panelIndex / 5) * (maxGain - minGain);
+      if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
+        let groupThreshold = 0.001;
+        let groupEnd = currentNoteIndex + 1;
+        while (groupEnd < notesToPlay.length &&
+               Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
+          groupEnd++;
+        }
+        for (let i = currentNoteIndex; i < groupEnd; i++) {
+          let note = notesToPlay[i];
+          if (pedalOn) {
+            playPianoNote(effectiveGain, note.noteNumber);
+          } else {
+            playNoteNonPedal(effectiveGain, note.noteNumber);
+          }
+        }
+        currentNoteIndex = groupEnd;
+        if (currentNoteIndex >= notesToPlay.length) {
+          currentNoteIndex = 0;
+        }
+      } else {
+        if (pedalOn) {
+          playPianoNote(effectiveGain, defaultMidiNote);
+        } else {
+          playNoteNonPedal(effectiveGain, defaultMidiNote);
+        }
+      }
+    };
+
+    // Función auxiliar para generar un color aleatorio en formato hexadecimal (usado en HTML)
+    function getRandomColor() {
+      return '#' + Math.floor(Math.random() * 16777215).toString(16);
+    }
   </script>
 
   <!-- Código AR usando Three.js y ARButton -->
@@ -576,7 +596,7 @@
     // Agregar el botón AR predeterminado
     document.body.appendChild(ARButton.createButton(renderer));
 
-    // Cuando se inicie la sesión AR, ocultamos la interfaz HTML original
+    // Ocultar la interfaz HTML tradicional al iniciar sesión AR
     renderer.xr.addEventListener('sessionstart', () => {
       document.getElementById('container').style.display = 'none';
     });
@@ -590,10 +610,8 @@
       canvas.width = 256;
       canvas.height = 128;
       const context = canvas.getContext('2d');
-      // Fondo negro
       context.fillStyle = 'black';
       context.fillRect(0, 0, canvas.width, canvas.height);
-      // Texto blanco centrado
       context.font = '48px sans-serif';
       context.fillStyle = 'white';
       context.textAlign = 'center';
@@ -611,36 +629,28 @@
     const panels = [];
     panelTexts.forEach((text, index) => {
       const panel = createTextPanel(text);
-      // Ubicar los paneles en forma vertical frente al usuario
+      // Posicionar los paneles en forma vertical frente al usuario
       panel.position.set(0, 1 - index * 0.6, -2);
       scene.add(panel);
       panels.push(panel);
     });
 
-    // Función para manejar la interacción en AR (al "golpear" un panel)
+    // Función para manejar la interacción en AR: cambia el color del panel y dispara el evento de sonido
     function onPanelSelect(panel) {
-      // Se muestra un efecto visual simple (cambio de color momentáneo)
-      panel.material.color.set(0xff0000);
+      // Generar un color aleatorio usando THREE.Color
+      const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+      panel.material.color.copy(randomColor);
       setTimeout(() => {
         panel.material.color.set(0xffffff);
       }, 200);
-      // Se asigna una nota MIDI basada en el índice del panel
+      // Obtener el índice del panel y disparar la función global que reproduce la nota correspondiente
       const panelIndex = panels.indexOf(panel);
-      // Puedes definir un mapeo propio de notas. En este ejemplo se usan valores arbitrarios.
-      const midiNotes = [72, 74, 76, 77, 79, 81];
-      const midiNote = midiNotes[panelIndex] || defaultMidiNote;
-      const effectiveGain = 1.0;
-      if (pedalOn) {
-        playPianoNote(effectiveGain, midiNote);
-      } else {
-        playNoteNonPedal(effectiveGain, midiNote);
-      }
+      window.handleARPanelSelect(panelIndex);
     }
 
     // Configurar un controlador XR para detectar la acción “select”
     const controller = renderer.xr.getController(0);
     controller.addEventListener('select', () => {
-      // Raycast desde la posición del controlador
       const tempMatrix = new THREE.Matrix4();
       tempMatrix.identity().extractRotation(controller.matrixWorld);
       const raycaster = new THREE.Raycaster();
@@ -653,10 +663,9 @@
     });
     scene.add(controller);
 
-    // Para dispositivos sin controlador XR (por ejemplo, móviles), se agrega el evento touch
+    // Para dispositivos sin controlador XR (por ejemplo, móviles), usar raycasting basado en el touch
     renderer.domElement.addEventListener('touchstart', (event) => {
       const touch = event.touches[0];
-      // Convertir posición de toque a coordenadas normalizadas
       const x = (touch.clientX / window.innerWidth) * 2 - 1;
       const y = - (touch.clientY / window.innerHeight) * 2 + 1;
       const raycaster = new THREE.Raycaster();
