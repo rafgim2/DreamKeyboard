@@ -394,8 +394,6 @@
     });
 
     // Manejo de eventos de toque/puntero en la interfaz tradicional
-
-    // Al presionar (pointerdown o touchstart)
     function handlePointerDown(e) {
       if (e.pointerType === "mouse" && e.buttons !== 1) return;
       
@@ -454,7 +452,6 @@
       }
     }
 
-    // Al levantar el dedo (pointerup o touchend)
     function handlePointerUp(e) {
       if (!pedalOn && activeNotes[e.pointerId]) {
         activeNotes[e.pointerId].forEach(function(noteObj) {
@@ -496,7 +493,6 @@
       touchBox.addEventListener('click', handlePointerDown);
     }
 
-    // Reanudar AudioContext en caso de suspensión
     document.addEventListener('click', function() {
       if (audioContext.state === 'suspended') {
         audioContext.resume().then(() => {
@@ -505,7 +501,6 @@
       }
     });
 
-    // Botón de pantalla completa
     var fullscreenBtn = document.getElementById('fullscreenBtn');
     fullscreenBtn.addEventListener('click', function(e) {
       var elem = document.getElementById('container');
@@ -528,7 +523,6 @@
       }
     });
 
-    // Botón de Pedal para alternar modo
     var pedalBtn = document.getElementById('pedalBtn');
     pedalBtn.addEventListener('click', function() {
       pedalOn = !pedalOn;
@@ -537,11 +531,10 @@
       console.log("Pedal:", pedalOn ? "ON" : "OFF");
     });
 
-    // Cargar MIDI por defecto al iniciar
     window.addEventListener('load', loadDefaultMidi);
 
     // Función global para manejar la selección de panel en AR.
-    // Calcula el gain en función del índice del panel (0 → fortísimo, 5 → pianísimo)
+    // Calcula el gain según el índice del panel (0 → fortísimo, 5 → pianísimo)
     window.handleARPanelSelect = function(panelIndex) {
       const minGain = 0.15, maxGain = 1.0;
       const effectiveGain = maxGain - (panelIndex / 5) * (maxGain - minGain);
@@ -573,7 +566,6 @@
       }
     };
 
-    // Función auxiliar para generar un color aleatorio en formato hexadecimal (usado en HTML)
     function getRandomColor() {
       return '#' + Math.floor(Math.random() * 16777215).toString(16);
     }
@@ -584,7 +576,6 @@
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
 
-    // Crear la escena AR, cámara y renderer
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -592,10 +583,8 @@
     renderer.xr.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // Agregar el botón AR predeterminado
     document.body.appendChild(ARButton.createButton(renderer));
 
-    // Ocultar la interfaz HTML tradicional al iniciar sesión AR
     renderer.xr.addEventListener('sessionstart', () => {
       document.getElementById('container').style.display = 'none';
     });
@@ -603,24 +592,25 @@
       document.getElementById('container').style.display = 'flex';
     });
 
-    // Función para crear un panel con fondo y texto en dos mallas (para separar fondo y letra)
+    // Función para crear un panel como grupo con malla de fondo y malla de texto.
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      const panelWidth = 2.0, panelHeight = 0.5;
+      // Panel reducido: 1.0 m de ancho, 0.25 m de alto.
+      const panelWidth = 1.0, panelHeight = 0.25;
 
-      // Malla de fondo (se cambiará de color al seleccionar)
+      // Malla de fondo (color negro, que se cambiará al seleccionar)
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
       const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
       panelGroup.add(bgMesh);
 
-      // Malla de texto (fondo transparente)
+      // Malla de texto con canvas (fondo transparente)
       const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 128;
+      canvas.width = 256;
+      canvas.height = 64;
       const context = canvas.getContext('2d');
       context.clearRect(0, 0, canvas.width, canvas.height);
-      context.font = '64px sans-serif';
+      context.font = '32px sans-serif';
       context.fillStyle = 'white';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
@@ -632,37 +622,32 @@
       textMesh.renderOrder = 1;
       panelGroup.add(textMesh);
 
-      // Guardar referencia al material de fondo para cambiar su color
       panelGroup.userData.bgMaterial = bgMaterial;
-
       return panelGroup;
     }
 
-    // Crear los 6 paneles con los nombres de matices
+    // Crear 6 paneles y ubicarlos más cerca (z = -0.8) y algo más bajos.
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
     panelTexts.forEach((text, index) => {
       const panel = createTextPanel(text);
-      // Ubicar los paneles más cerca y más bajos: z = -1.2, y decrece según el índice
-      panel.position.set(0, 0.5 - index * 0.4, -1.2);
+      panel.position.set(0, 0.5 - index * 0.3, -0.8);
       scene.add(panel);
       panels.push(panel);
     });
 
-    // Función para manejar la interacción en AR: cambia el fondo del panel y dispara el sonido
+    // Función que maneja la selección de panel en AR (cambio de fondo y reproducción de sonido)
     function onPanelSelect(panel) {
-      // Cambiar el fondo de la malla (no el texto)
       const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
       panel.userData.bgMaterial.color.copy(randomColor);
       setTimeout(() => {
         panel.userData.bgMaterial.color.set(0x000000);
       }, 200);
-      // Obtener el índice del panel y disparar la función global de sonido
       const panelIndex = panels.indexOf(panel);
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Configurar el controlador XR para detectar la acción "select"
+    // Configurar controlador XR tradicional (para dispositivos con controlador)
     const controller = renderer.xr.getController(0);
     controller.addEventListener('select', () => {
       const tempMatrix = new THREE.Matrix4();
@@ -672,14 +657,37 @@
       raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
       const intersects = raycaster.intersectObjects(panels, true);
       if (intersects.length > 0) {
-        // Se obtiene el grupo padre en caso de que se interseque la malla de texto o fondo
         const selectedPanel = intersects[0].object.parent;
         onPanelSelect(selectedPanel);
       }
     });
     scene.add(controller);
 
-    // Para dispositivos sin controlador XR (por ejemplo, móviles) se usa raycasting basado en touch
+    // Configurar hand tracking: si está disponible, se obtiene el objeto hand y se agrega listener.
+    const hand = renderer.xr.getHand(0);
+    if (hand) {
+      hand.addEventListener('select', (event) => {
+        // Utilizar el joint "index-finger-tip" para obtener la posición de la mano.
+        const indexTip = hand.joints.get('index-finger-tip');
+        const wrist = hand.joints.get('wrist');
+        if (indexTip && wrist) {
+          const origin = new THREE.Vector3();
+          indexTip.getWorldPosition(origin);
+          const wristPos = new THREE.Vector3();
+          wrist.getWorldPosition(wristPos);
+          const direction = new THREE.Vector3().subVectors(origin, wristPos).normalize();
+          const raycaster = new THREE.Raycaster(origin, direction);
+          const intersects = raycaster.intersectObjects(panels, true);
+          if (intersects.length > 0) {
+            const selectedPanel = intersects[0].object.parent;
+            onPanelSelect(selectedPanel);
+          }
+        }
+      });
+      scene.add(hand);
+    }
+
+    // También mantener el listener para toques en pantalla.
     renderer.domElement.addEventListener('touchstart', (event) => {
       const touch = event.touches[0];
       const x = (touch.clientX / window.innerWidth) * 2 - 1;
@@ -693,7 +701,6 @@
       }
     });
 
-    // Loop de animación AR
     function animate() {
       renderer.setAnimationLoop(render);
     }
