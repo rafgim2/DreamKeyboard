@@ -545,15 +545,17 @@
     renderer.xr.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // Crear botón AR con soporte para hand-tracking
+    // Crear botón AR con soporte para hit-test y hand-tracking
     document.body.appendChild(ARButton.createButton(renderer, {
       requiredFeatures: ['hit-test'],
       optionalFeatures: ['hand-tracking']
     }));
 
-    // Agregar el objeto de mano a la escena para el hand tracking
-    const hand = renderer.xr.getHand(0);
-    scene.add(hand);
+    // Agregar ambas manos a la escena
+    const rightHand = renderer.xr.getHand(0);
+    const leftHand  = renderer.xr.getHand(1);
+    scene.add(rightHand);
+    scene.add(leftHand);
 
     renderer.xr.addEventListener('sessionstart', () => {
       document.getElementById('container').style.display = 'none';
@@ -565,7 +567,8 @@
     // Función para crear un panel en AR: grupo con fondo y texto.
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      const panelWidth = 1.0, panelHeight = 0.25;
+      // Dimensiones reducidas a la mitad
+      const panelWidth = 0.5, panelHeight = 0.125;
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
       const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
@@ -590,12 +593,13 @@
       return panelGroup;
     }
 
-    // Crear los paneles y ubicarlos a z = -0.8 y algo más bajos.
+    // Crear los paneles y ubicarlos: se ha reducido la separación vertical para adaptarlos al tamaño.
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
     panelTexts.forEach((text, index) => {
       const panel = createTextPanel(text);
-      panel.position.set(0, 0.5 - index * 0.3, -0.8);
+      // Se ajusta la posición vertical: la separación se reduce proporcionalmente
+      panel.position.set(0, 0.25 - index * 0.15, -0.8);
       scene.add(panel);
       panels.push(panel);
     });
@@ -626,42 +630,41 @@
     });
     scene.add(controller);
 
-    // En cada frame se comprueba la distancia del joint "index-finger-tip"
-    // con el centro de cada panel y se activa si está muy cerca.
+    // En cada frame se comprueba la distancia del joint "index-finger-tip" de ambas manos
     function checkHandCollisions() {
-      // Obtener el objeto de mano (ya agregado a la escena)
-      const hand = renderer.xr.getHand(0);
-      if (hand) {
-        let fingerPos = new THREE.Vector3();
-        // Acceder al joint "index-finger-tip"
-        if (hand.joints) {
-          const indexTip = hand.joints['index-finger-tip'];
-          if (indexTip) {
-            indexTip.getWorldPosition(fingerPos);
+      const threshold = 0.06; // Umbral reducido para paneles más pequeños
+      const now = performance.now();
+      for (let handIndex = 0; handIndex < 2; handIndex++) {
+        const hand = renderer.xr.getHand(handIndex);
+        if (hand) {
+          let fingerPos = new THREE.Vector3();
+          if (hand.joints) {
+            const indexTip = hand.joints['index-finger-tip'];
+            if (indexTip) {
+              indexTip.getWorldPosition(fingerPos);
+            } else if (hand.children.length > 0) {
+              hand.children[0].getWorldPosition(fingerPos);
+            }
           } else if (hand.children.length > 0) {
             hand.children[0].getWorldPosition(fingerPos);
+          } else {
+            continue;
           }
-        } else if (hand.children.length > 0) {
-          hand.children[0].getWorldPosition(fingerPos);
-        } else {
-          return;
-        }
-        const threshold = 0.12; // Umbral en metros
-        const now = performance.now();
-        panels.forEach(panel => {
-          const panelCenter = new THREE.Vector3();
-          panel.getWorldPosition(panelCenter);
-          if (fingerPos.distanceTo(panelCenter) < threshold) {
-            if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 500) {
-              onPanelSelect(panel);
-              panel.userData.lastActivated = now;
+          panels.forEach(panel => {
+            const panelCenter = new THREE.Vector3();
+            panel.getWorldPosition(panelCenter);
+            if (fingerPos.distanceTo(panelCenter) < threshold) {
+              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 500) {
+                onPanelSelect(panel);
+                panel.userData.lastActivated = now;
+              }
             }
-          }
-        });
+          });
+        }
       }
     }
 
-    // También mantener el listener para toques en pantalla.
+    // Listener para toques en pantalla.
     renderer.domElement.addEventListener('touchstart', (event) => {
       const touch = event.touches[0];
       const x = (touch.clientX / window.innerWidth) * 2 - 1;
