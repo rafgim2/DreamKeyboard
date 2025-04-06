@@ -654,7 +654,7 @@
             const panelCenter = new THREE.Vector3();
             panel.getWorldPosition(panelCenter);
             if (fingerPos.distanceTo(panelCenter) < threshold) {
-              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 50) {
+              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 250) {
                 onPanelSelect(panel);
                 panel.userData.lastActivated = now;
               }
