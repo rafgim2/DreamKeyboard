@@ -621,35 +621,35 @@
     // En cada frame se comprueba la distancia del joint "index-finger-tip"
     // con el centro de cada panel y se activa si está muy cerca.
     function checkHandCollisions() {
-      const hand = renderer.xr.getHand(0);
-      if (hand) {
-        let fingerPos = new THREE.Vector3();
-        // Primero se intenta usar hand.joints.get (si está disponible)
-        if (hand.joints && typeof hand.joints.get === 'function') {
-          const indexTip = hand.joints.get('index-finger-tip');
-          if (indexTip) {
-            indexTip.getWorldPosition(fingerPos);
-          }
-        } else if (hand.children && hand.children.length > 0) {
-          // Si no, usamos el primer hijo como fallback
-          hand.children[0].getWorldPosition(fingerPos);
+    const hand = renderer.xr.getHand(0);
+    if (hand) {
+      let fingerPos = new THREE.Vector3();
+      // Intentamos obtener el joint 'index-finger-tip'
+      if (hand.joints) {
+        const indexTip = hand.joints['index-finger-tip'];
+        if (indexTip) {
+          indexTip.getWorldPosition(fingerPos);
         }
-        if (fingerPos) {
-          const threshold = 0.12; // Umbral en metros
-          const now = performance.now();
-          panels.forEach(panel => {
-            const panelCenter = new THREE.Vector3();
-            panel.getWorldPosition(panelCenter);
-            if (fingerPos.distanceTo(panelCenter) < threshold) {
-              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 500) {
-                onPanelSelect(panel);
-                panel.userData.lastActivated = now;
-              }
-            }
-          });
-        }
+      } else if (hand.children && hand.children.length > 0) {
+        // Si no se encuentra, usamos el primer hijo como fallback
+        hand.children[0].getWorldPosition(fingerPos);
+      } else {
+        return; // No se encontró posición, salimos
       }
+      const threshold = 0.12; // Umbral en metros
+      const now = performance.now();
+      panels.forEach(panel => {
+        const panelCenter = new THREE.Vector3();
+        panel.getWorldPosition(panelCenter);
+        if (fingerPos.distanceTo(panelCenter) < threshold) {
+          if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 500) {
+            onPanelSelect(panel);
+            panel.userData.lastActivated = now;
+          }
+        }
+      });
     }
+  }
 
     // También mantener el listener para toques en pantalla.
     renderer.domElement.addEventListener('touchstart', (event) => {
