@@ -153,7 +153,7 @@
   </style>
 </head>
 <body>
-  <!-- Interfaz tradicional (oculta en AR) -->
+  <!-- Interfaz tradicional (se oculta en AR) -->
   <div id="container">
     <button id="fullscreenBtn">⛶</button>
     <h1>DreamTouch</h1>
@@ -533,7 +533,7 @@
     }
   </script>
 
-  <!-- Código AR con Three.js y ARButton -->
+  <!-- Código AR usando Three.js y ARButton -->
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
@@ -554,7 +554,7 @@
       document.getElementById('container').style.display = 'flex';
     });
 
-    // Función para crear un panel en AR (grupo con fondo y texto)
+    // Función para crear un panel en AR: grupo con malla de fondo y malla de texto.
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
       const panelWidth = 1.0, panelHeight = 0.25;
@@ -582,7 +582,7 @@
       return panelGroup;
     }
 
-    // Crear los paneles y ubicarlos a z = -0.8 y algo más bajos
+    // Crear los paneles y ubicarlos a z = -0.8 y algo más bajos.
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
     panelTexts.forEach((text, index) => {
@@ -602,7 +602,7 @@
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Configurar el controlador XR (para dispositivos con controladores)
+    // Configurar el controlador XR para dispositivos con controladores.
     const controller = renderer.xr.getController(0);
     controller.addEventListener('select', () => {
       const tempMatrix = new THREE.Matrix4();
@@ -618,32 +618,27 @@
     });
     scene.add(controller);
 
-    // Nueva detección: calcular la caja envolvente (bounding box) de la mano
-    const cooldown = 500; // ms
+    // Comprobar en cada frame la distancia del joint "index-finger-tip" con cada panel.
     function checkHandCollisions() {
       const hand = renderer.xr.getHand(0);
-      if (hand && hand.length > 0) {
-        // Calcular la caja envolvente de la mano basada en todos sus joints
-        const handBox = new THREE.Box3();
-        for (let i = 0; i < hand.length; i++) {
-          const joint = hand[i];
-          if (joint) {
-            const pos = new THREE.Vector3();
-            joint.getWorldPosition(pos);
-            handBox.expandByPoint(pos);
-          }
-        }
-        const now = performance.now();
-        panels.forEach(panel => {
-          panel.updateMatrixWorld(true);
-          const panelBox = new THREE.Box3().setFromObject(panel);
-          if (handBox.intersectsBox(panelBox)) {
-            if (!panel.userData.lastActivated || now - panel.userData.lastActivated > cooldown) {
-              onPanelSelect(panel);
-              panel.userData.lastActivated = now;
+      if (hand) {
+        const indexTip = hand.joints.get('index-finger-tip');
+        if (indexTip) {
+          const fingerPos = new THREE.Vector3();
+          indexTip.getWorldPosition(fingerPos);
+          const threshold = 0.12; // Umbral en metros (ajústalo según necesidad)
+          const now = performance.now();
+          panels.forEach(panel => {
+            const panelCenter = new THREE.Vector3();
+            panel.getWorldPosition(panelCenter);
+            if (fingerPos.distanceTo(panelCenter) < threshold) {
+              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 500) {
+                onPanelSelect(panel);
+                panel.userData.lastActivated = now;
+              }
             }
-          }
-        });
+          });
+        }
       }
     }
 
