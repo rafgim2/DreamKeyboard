@@ -583,10 +583,8 @@
     renderer.xr.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // Agregar el botón AR predeterminado
     document.body.appendChild(ARButton.createButton(renderer));
 
-    // Ocultar la interfaz HTML tradicional al iniciar sesión AR
     renderer.xr.addEventListener('sessionstart', () => {
       document.getElementById('container').style.display = 'none';
     });
@@ -594,19 +592,19 @@
       document.getElementById('container').style.display = 'flex';
     });
 
-    // Función para crear un panel como grupo con malla de fondo y malla de texto.
+    // Función para crear un panel como grupo con fondo y texto
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      // Panel reducido: 1.0 m de ancho, 0.25 m de alto.
+      // Panel de 1.0 m de ancho x 0.25 m de alto
       const panelWidth = 1.0, panelHeight = 0.25;
 
-      // Malla de fondo (color negro, que se cambiará al seleccionar)
+      // Malla de fondo (se cambiará su color)
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
       const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
       panelGroup.add(bgMesh);
 
-      // Malla de texto con canvas (fondo transparente)
+      // Malla de texto (fondo transparente)
       const canvas = document.createElement('canvas');
       canvas.width = 256;
       canvas.height = 64;
@@ -628,7 +626,7 @@
       return panelGroup;
     }
 
-    // Crear 6 paneles y ubicarlos más cerca (z = -0.8) y algo más bajos.
+    // Crear 6 paneles y ubicarlos más cerca (z = -0.8) y algo más bajos
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
     panelTexts.forEach((text, index) => {
@@ -638,7 +636,7 @@
       panels.push(panel);
     });
 
-    // Función que maneja la selección de panel en AR: cambia el fondo y dispara el sonido.
+    // Función que maneja la selección de un panel: cambia el fondo y reproduce sonido
     function onPanelSelect(panel) {
       const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
       panel.userData.bgMaterial.color.copy(randomColor);
@@ -649,7 +647,7 @@
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Configurar controlador XR para dispositivos con controlador.
+    // Configurar controlador XR tradicional (para dispositivos con controlador)
     const controller = renderer.xr.getController(0);
     controller.addEventListener('select', () => {
       const tempMatrix = new THREE.Matrix4();
@@ -665,53 +663,55 @@
     });
     scene.add(controller);
 
-    // Mantenimiento del listener para toques en pantalla.
-    renderer.domElement.addEventListener('touchstart', (event) => {
-      const touch = event.touches[0];
-      const x = (touch.clientX / window.innerWidth) * 2 - 1;
-      const y = - (touch.clientY / window.innerHeight) * 2 + 1;
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-      const intersects = raycaster.intersectObjects(panels, true);
-      if (intersects.length > 0) {
-        const selectedPanel = intersects[0].object.parent;
-        onPanelSelect(selectedPanel);
-      }
-    });
-
-    // Implementación de hand tracking mediante polling en cada frame.
-    const HAND_TOUCH_THRESHOLD = 0.15; // Umbral en metros
-    function checkHandInteraction() {
-      const hand = renderer.xr.getHand(0);
-      if (hand) {
-        const indexTip = hand.joints.get('index-finger-tip');
-        if (indexTip) {
-          const fingerPos = new THREE.Vector3();
-          indexTip.getWorldPosition(fingerPos);
-          panels.forEach(panel => {
-            const panelPos = new THREE.Vector3();
-            panel.getWorldPosition(panelPos);
-            const distance = fingerPos.distanceTo(panelPos);
-            if (distance < HAND_TOUCH_THRESHOLD) {
-              if (!panel.userData.triggered) {
-                panel.userData.triggered = true;
-                onPanelSelect(panel);
-              }
-            } else {
-              panel.userData.triggered = false;
-            }
-          });
-        }
-      }
+    // Hand tracking: detección de "pinch" usando distancia entre thumb y index
+    let pinchActive = false;
+    const hand = renderer.xr.getHand(0);
+    if (hand) {
+      scene.add(hand);
     }
 
+    // En el loop de render se verifica si se realiza un pinch
     function animate() {
       renderer.setAnimationLoop(render);
     }
     function render() {
+      // Verificar pinch en hand tracking si la mano está disponible
+      if (hand) {
+        const indexTip = hand.joints.get('index-finger-tip');
+        const thumbTip = hand.joints.get('thumb-tip');
+        if (indexTip && thumbTip) {
+          const indexPos = new THREE.Vector3();
+          const thumbPos = new THREE.Vector3();
+          indexTip.getWorldPosition(indexPos);
+          thumbTip.getWorldPosition(thumbPos);
+          const distance = indexPos.distanceTo(thumbPos);
+          // Umbral de 3 cm para detectar el pinch
+          if (distance < 0.03) {
+            if (!pinchActive) {
+              pinchActive = true;
+              // Usar la posición del dedo índice y calcular dirección basada en la posición del muñeca
+              const wrist = hand.joints.get('wrist');
+              let rayDirection = new THREE.Vector3();
+              if (wrist) {
+                const wristPos = new THREE.Vector3();
+                wrist.getWorldPosition(wristPos);
+                rayDirection.subVectors(indexPos, wristPos).normalize();
+              } else {
+                rayDirection.set(0, 0, -1);
+              }
+              const raycaster = new THREE.Raycaster(indexPos, rayDirection);
+              const intersects = raycaster.intersectObjects(panels, true);
+              if (intersects.length > 0) {
+                const selectedPanel = intersects[0].object.parent;
+                onPanelSelect(selectedPanel);
+              }
+            }
+          } else {
+            pinchActive = false;
+          }
+        }
+      }
       renderer.render(scene, camera);
-      // Verificar interacción por hand tracking en cada frame.
-      checkHandInteraction();
     }
     animate();
   </script>
