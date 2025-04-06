@@ -166,15 +166,13 @@
   </style>
 </head>
 <body>
-  <!-- Contenedor de la interfaz “tradicional” (se oculta en AR) -->
+  <!-- Interfaz tradicional (se oculta en AR) -->
   <div id="container">
-    <!-- Botón de pantalla completa -->
     <button id="fullscreenBtn">⛶</button>
     <h1>DreamTouch</h1>
     <div id="copyright">
       <a href="https://www.youtube.com/@rafgim" target="_blank" style="color: inherit; text-decoration: none;">© By Rafael Gimeno</a>
     </div>
-    <!-- Área de toque -->
     <div id="touchBox">
       <div id="dynamicMarkingsContainer">
         <div>Fortissimo</div>
@@ -185,7 +183,6 @@
         <div>Pianissimo</div>
       </div>
     </div>
-    <!-- Controles inferiores -->
     <div id="buttons">
       <label for="midiFile" id="loadButton">
         Cargar Archivo MIDI
@@ -204,7 +201,6 @@
         </select>
       </div>
       <div id="fileName"></div>
-      <!-- Botón de pedal al final -->
       <button id="pedalBtn">Pedal ON</button>
     </div>
   </div>
@@ -217,7 +213,7 @@
     // CONFIGURACIÓN DEL AUDIO
     var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-    // Filtros para suavizar el sonido:
+    // Filtros para suavizar el sonido
     var highpass = audioContext.createBiquadFilter();
     highpass.type = "highpass";
     highpass.frequency.value = 200;
@@ -227,7 +223,7 @@
     highpass.connect(lowpass);
     lowpass.connect(audioContext.destination);
 
-    // Variable para el instrumento
+    // Cargar el instrumento (Soundfont)
     var pianoInstrument = null;
     if (window.Soundfont && typeof window.Soundfont.instrument === 'function') {
       Soundfont.instrument(audioContext, 'acoustic_grand_piano', { soundfont: 'MusyngKite' })
@@ -242,30 +238,23 @@
       console.error("No se encontró el método instrument en Soundfont.");
     }
 
-    // Nota por defecto
     var defaultMidiNote = 60; // C4
-    // Duración usada en modo PEDAL (fade out automático)
     var noteDuration = 3.0;
-    // Pedal activado por defecto
     var pedalOn = true;
-    // Objeto para almacenar las notas activas en modo SIN PEDAL (clave: id único por toque)
     var activeNotes = {};
 
-    // Función para convertir número MIDI a nombre (ej. "C4")
     function midiNoteToNoteName(midi) {
       var octave = Math.floor(midi / 12) - 1;
       var noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
       return noteNames[midi % 12] + octave;
     }
 
-    // Cálculo del gain según posición vertical (usado en HTML)
     function computeEffectiveGain(relativeY) {
       var minGain = 0.15;
       var maxGain = 1.0;
       return minGain + (maxGain - minGain) * (1 - relativeY);
     }
 
-    // Reproducción en modo PEDAL ON (comportamiento original)
     function playPianoNote(gain, midiNote) {
       if (pianoInstrument) {
         var noteName = midiNoteToNoteName(midiNote);
@@ -287,13 +276,12 @@
       }
     }
 
-    // Reproducción en modo SIN PEDAL: la nota se mantiene hasta detenerse manualmente
     function playNoteNonPedal(gain, midiNote) {
       if (pianoInstrument) {
         var noteName = midiNoteToNoteName(midiNote);
         var source = pianoInstrument.play(noteName, audioContext.currentTime, {
           gain: gain,
-          duration: 100, // duración larga para mantener la nota
+          duration: 100,
           velocity: gain * 127
         });
         var noteGain = audioContext.createGain();
@@ -319,7 +307,6 @@
       }
     }
 
-    // Cargar archivo MIDI desde input
     document.getElementById('midiFile').addEventListener('change', function(e) {
       document.getElementById('fileName').textContent = e.target.files[0].name;
       var reader = new FileReader();
@@ -334,7 +321,6 @@
       reader.readAsBinaryString(e.target.files[0]);
     });
 
-    // Cargar MIDI desde URL
     function loadMidiFromUrl(url, fileName) {
       fetch(url)
         .then(response => response.arrayBuffer())
@@ -354,14 +340,12 @@
         .catch(error => console.error("Error al cargar el MIDI:", error));
     }
 
-    // Cargar MIDI por defecto
     function loadDefaultMidi() {
       const defaultMidiUrl = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/Handel & Halvorsen Passacaglia.mid";
       const defaultFileName = "Handel & Halvorsen Passacaglia.mid";
       loadMidiFromUrl(defaultMidiUrl, defaultFileName);
     }
 
-    // Extraer notas del archivo MIDI
     function extractNotesFromMidi(midi) {
       notesToPlay = [];
       currentNoteIndex = 0;
@@ -384,7 +368,6 @@
       console.log("Notas MIDI extraídas:", notesToPlay);
     }
 
-    // Selector de canciones de muestra
     document.getElementById('sampleSongs').addEventListener('change', function() {
       if (this.value) {
         const fileName = this.value;
@@ -393,25 +376,19 @@
       }
     });
 
-    // Manejo de eventos de toque/puntero en la interfaz tradicional
     function handlePointerDown(e) {
       if (e.pointerType === "mouse" && e.buttons !== 1) return;
-      
       var rect = e.currentTarget.getBoundingClientRect();
       var y = e.clientY;
       var relativeY = (y - rect.top) / rect.height;
       var effectiveGain = computeEffectiveGain(relativeY);
-      
       var randomColor = getRandomColor();
       document.body.style.backgroundColor = randomColor;
-      
       var dynamicContainer = document.getElementById('dynamicMarkingsContainer');
       var rows = dynamicContainer.children;
-      
       for (var i = 0; i < rows.length; i++) {
         rows[i].style.backgroundColor = 'black';
       }
-      
       var containerRect = dynamicContainer.getBoundingClientRect();
       var relativeYInContainer = (e.clientY - containerRect.top) / containerRect.height;
       var rowIndex = Math.floor(relativeYInContainer * rows.length);
@@ -419,7 +396,6 @@
         rowIndex = 0;
       }
       rows[rowIndex].style.backgroundColor = randomColor;
-      
       var notesArray = [];
       if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
         var groupThreshold = 0.001;
@@ -533,8 +509,7 @@
 
     window.addEventListener('load', loadDefaultMidi);
 
-    // Función global para manejar la selección de panel en AR.
-    // Calcula el gain según el índice del panel (0 → fortísimo, 5 → pianísimo)
+    // Función global para manejar la selección de panel en AR (calcula el gain según el índice)
     window.handleARPanelSelect = function(panelIndex) {
       const minGain = 0.15, maxGain = 1.0;
       const effectiveGain = maxGain - (panelIndex / 5) * (maxGain - minGain);
@@ -571,7 +546,7 @@
     }
   </script>
 
-  <!-- Código AR usando Three.js y ARButton -->
+  <!-- Código AR con Three.js y ARButton -->
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
@@ -592,19 +567,15 @@
       document.getElementById('container').style.display = 'flex';
     });
 
-    // Función para crear un panel como grupo con fondo y texto
+    // Crear paneles en AR: cada panel es un grupo con malla de fondo (que cambiará de color) y malla de texto.
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      // Panel de 1.0 m de ancho x 0.25 m de alto
+      // Dimensiones reducidas: 1.0 m de ancho y 0.25 m de alto.
       const panelWidth = 1.0, panelHeight = 0.25;
-
-      // Malla de fondo (se cambiará su color)
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
       const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
       panelGroup.add(bgMesh);
-
-      // Malla de texto (fondo transparente)
       const canvas = document.createElement('canvas');
       canvas.width = 256;
       canvas.height = 64;
@@ -621,12 +592,11 @@
       const textMesh = new THREE.Mesh(textGeometry, textMaterial);
       textMesh.renderOrder = 1;
       panelGroup.add(textMesh);
-
       panelGroup.userData.bgMaterial = bgMaterial;
       return panelGroup;
     }
 
-    // Crear 6 paneles y ubicarlos más cerca (z = -0.8) y algo más bajos
+    // Crear los 6 paneles y ubicarlos más cerca (z = -0.8) y un poco más bajos.
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
     panelTexts.forEach((text, index) => {
@@ -636,7 +606,6 @@
       panels.push(panel);
     });
 
-    // Función que maneja la selección de un panel: cambia el fondo y reproduce sonido
     function onPanelSelect(panel) {
       const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
       panel.userData.bgMaterial.color.copy(randomColor);
@@ -647,7 +616,7 @@
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Configurar controlador XR tradicional (para dispositivos con controlador)
+    // Configurar el controlador XR (para dispositivos con controladores)
     const controller = renderer.xr.getController(0);
     controller.addEventListener('select', () => {
       const tempMatrix = new THREE.Matrix4();
@@ -663,55 +632,51 @@
     });
     scene.add(controller);
 
-    // Hand tracking: detección de "pinch" usando distancia entre thumb y index
-    let pinchActive = false;
+    // En lugar de depender solo de eventos de "select" en la mano,
+    // se realiza una comprobación en cada frame en el render loop.
     const hand = renderer.xr.getHand(0);
-    if (hand) {
-      scene.add(hand);
-    }
-
-    // En el loop de render se verifica si se realiza un pinch
-    function animate() {
-      renderer.setAnimationLoop(render);
-    }
-    function render() {
-      // Verificar pinch en hand tracking si la mano está disponible
-      if (hand) {
+    const fingerPos = new THREE.Vector3();
+    const cooldown = 500; // ms
+    function checkHandInteraction() {
+      if (hand && hand.joints && hand.joints.get) {
         const indexTip = hand.joints.get('index-finger-tip');
-        const thumbTip = hand.joints.get('thumb-tip');
-        if (indexTip && thumbTip) {
-          const indexPos = new THREE.Vector3();
-          const thumbPos = new THREE.Vector3();
-          indexTip.getWorldPosition(indexPos);
-          thumbTip.getWorldPosition(thumbPos);
-          const distance = indexPos.distanceTo(thumbPos);
-          // Umbral de 3 cm para detectar el pinch
-          if (distance < 0.03) {
-            if (!pinchActive) {
-              pinchActive = true;
-              // Usar la posición del dedo índice y calcular dirección basada en la posición del muñeca
-              const wrist = hand.joints.get('wrist');
-              let rayDirection = new THREE.Vector3();
-              if (wrist) {
-                const wristPos = new THREE.Vector3();
-                wrist.getWorldPosition(wristPos);
-                rayDirection.subVectors(indexPos, wristPos).normalize();
-              } else {
-                rayDirection.set(0, 0, -1);
-              }
-              const raycaster = new THREE.Raycaster(indexPos, rayDirection);
-              const intersects = raycaster.intersectObjects(panels, true);
-              if (intersects.length > 0) {
-                const selectedPanel = intersects[0].object.parent;
-                onPanelSelect(selectedPanel);
+        if (indexTip) {
+          indexTip.getWorldPosition(fingerPos);
+          const now = performance.now();
+          panels.forEach(panel => {
+            const panelCenter = new THREE.Vector3();
+            panel.getWorldPosition(panelCenter);
+            if (fingerPos.distanceTo(panelCenter) < 0.15) {
+              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > cooldown) {
+                onPanelSelect(panel);
+                panel.userData.lastActivated = now;
               }
             }
-          } else {
-            pinchActive = false;
-          }
+          });
         }
       }
+    }
+
+    // También mantener el listener para toques en pantalla.
+    renderer.domElement.addEventListener('touchstart', (event) => {
+      const touch = event.touches[0];
+      const x = (touch.clientX / window.innerWidth) * 2 - 1;
+      const y = - (touch.clientY / window.innerHeight) * 2 + 1;
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+      const intersects = raycaster.intersectObjects(panels, true);
+      if (intersects.length > 0) {
+        const selectedPanel = intersects[0].object.parent;
+        onPanelSelect(selectedPanel);
+      }
+    });
+
+    function render() {
+      checkHandInteraction();
       renderer.render(scene, camera);
+    }
+    function animate() {
+      renderer.setAnimationLoop(render);
     }
     animate();
   </script>
