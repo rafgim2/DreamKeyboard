@@ -546,7 +546,7 @@
     }
   </script>
 
-  <!-- Código AR con Three.js y ARButton -->
+  <!-- Código AR usando Three.js y ARButton -->
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
@@ -567,10 +567,10 @@
       document.getElementById('container').style.display = 'flex';
     });
 
-    // Crear paneles en AR: cada panel es un grupo con malla de fondo (que cambiará de color) y malla de texto.
+    // Crear paneles en AR: cada panel es un grupo con malla de fondo y malla de texto.
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      // Dimensiones reducidas: 1.0 m de ancho y 0.25 m de alto.
+      // Dimensiones: 1.0 m de ancho, 0.25 m de alto.
       const panelWidth = 1.0, panelHeight = 0.25;
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
@@ -596,7 +596,7 @@
       return panelGroup;
     }
 
-    // Crear los 6 paneles y ubicarlos más cerca (z = -0.8) y un poco más bajos.
+    // Crear los 6 paneles y ubicarlos más cerca (z = -0.8) y algo más bajos.
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
     panelTexts.forEach((text, index) => {
@@ -632,21 +632,21 @@
     });
     scene.add(controller);
 
-    // En lugar de depender solo de eventos de "select" en la mano,
-    // se realiza una comprobación en cada frame en el render loop.
-    const hand = renderer.xr.getHand(0);
-    const fingerPos = new THREE.Vector3();
+    // Nueva función de detección de colisión usando hand tracking:
+    // Revisa cada joint de la mano y comprueba si se encuentra dentro de la caja envolvente de algún panel.
     const cooldown = 500; // ms
-    function checkHandInteraction() {
-      if (hand && hand.joints && hand.joints.get) {
-        const indexTip = hand.joints.get('index-finger-tip');
-        if (indexTip) {
-          indexTip.getWorldPosition(fingerPos);
-          const now = performance.now();
+    function checkHandCollisions() {
+      const hand = renderer.xr.getHand(0);
+      if (hand && hand.joints) {
+        const now = performance.now();
+        // Iterar sobre todos los joints disponibles
+        for (const joint of hand.joints.values()) {
+          const jointPos = new THREE.Vector3();
+          joint.getWorldPosition(jointPos);
           panels.forEach(panel => {
-            const panelCenter = new THREE.Vector3();
-            panel.getWorldPosition(panelCenter);
-            if (fingerPos.distanceTo(panelCenter) < 0.15) {
+            // Calcular la caja envolvente del panel
+            const box = new THREE.Box3().setFromObject(panel);
+            if (box.containsPoint(jointPos)) {
               if (!panel.userData.lastActivated || now - panel.userData.lastActivated > cooldown) {
                 onPanelSelect(panel);
                 panel.userData.lastActivated = now;
@@ -672,7 +672,7 @@
     });
 
     function render() {
-      checkHandInteraction();
+      checkHandCollisions();
       renderer.render(scene, camera);
     }
     function animate() {
