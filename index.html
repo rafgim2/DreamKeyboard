@@ -596,7 +596,7 @@
       return panelGroup;
     }
 
-    // Crear los 6 paneles y ubicarlos más cerca (z = -0.8) y algo más bajos.
+    // Crear los 6 paneles y ubicarlos a z = -0.8 y algo más bajos.
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
     panelTexts.forEach((text, index) => {
@@ -616,7 +616,7 @@
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Configurar el controlador XR (para dispositivos con controladores)
+    // Configurar el controlador XR para dispositivos con controladores.
     const controller = renderer.xr.getController(0);
     controller.addEventListener('select', () => {
       const tempMatrix = new THREE.Matrix4();
@@ -632,28 +632,30 @@
     });
     scene.add(controller);
 
-    // Nueva detección de colisiones: se revisan todos los joints de la mano y se calcula su caja de colisión
+    // Detección de colisión de la mano:
+    // Se itera sobre los hijos del objeto hand (XRHand) en lugar de usar "joints"
     const cooldown = 500; // milisegundos
     function checkHandCollisions() {
       const hand = renderer.xr.getHand(0);
-      if (hand && hand.joints && hand.joints.length) {
+      if (hand && hand.children && hand.children.length > 0) {
+        // Aseguramos que la mano actualice su matriz mundial
+        hand.updateMatrixWorld(true);
         const now = performance.now();
-        // Iterar por índices (para asegurar compatibilidad)
-        for (let i = 0; i < hand.joints.length; i++) {
-          const joint = hand.joints[i];
-          if (joint) {
-            const jointPos = new THREE.Vector3();
-            joint.getWorldPosition(jointPos);
-            panels.forEach(panel => {
-              const box = new THREE.Box3().setFromObject(panel);
-              if (box.containsPoint(jointPos)) {
-                if (!panel.userData.lastActivated || now - panel.userData.lastActivated > cooldown) {
-                  onPanelSelect(panel);
-                  panel.userData.lastActivated = now;
-                }
+        for (let i = 0; i < hand.children.length; i++) {
+          const joint = hand.children[i];
+          const jointPos = new THREE.Vector3();
+          joint.getWorldPosition(jointPos);
+          panels.forEach(panel => {
+            // Actualizamos la matriz mundial del panel
+            panel.updateMatrixWorld(true);
+            const box = new THREE.Box3().setFromObject(panel);
+            if (box.containsPoint(jointPos)) {
+              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > cooldown) {
+                onPanelSelect(panel);
+                panel.userData.lastActivated = now;
               }
-            });
-          }
+            }
+          });
         }
       }
     }
