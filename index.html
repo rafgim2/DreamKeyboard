@@ -583,8 +583,10 @@
     renderer.xr.enabled = true;
     document.body.appendChild(renderer.domElement);
 
+    // Agregar el botón AR predeterminado
     document.body.appendChild(ARButton.createButton(renderer));
 
+    // Ocultar la interfaz HTML tradicional al iniciar sesión AR
     renderer.xr.addEventListener('sessionstart', () => {
       document.getElementById('container').style.display = 'none';
     });
@@ -636,7 +638,7 @@
       panels.push(panel);
     });
 
-    // Función que maneja la selección de panel en AR (cambio de fondo y reproducción de sonido)
+    // Función que maneja la selección de panel en AR: cambia el fondo y dispara el sonido.
     function onPanelSelect(panel) {
       const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
       panel.userData.bgMaterial.color.copy(randomColor);
@@ -647,7 +649,7 @@
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Configurar controlador XR tradicional (para dispositivos con controlador)
+    // Configurar controlador XR para dispositivos con controlador.
     const controller = renderer.xr.getController(0);
     controller.addEventListener('select', () => {
       const tempMatrix = new THREE.Matrix4();
@@ -663,31 +665,7 @@
     });
     scene.add(controller);
 
-    // Configurar hand tracking: si está disponible, se obtiene el objeto hand y se agrega listener.
-    const hand = renderer.xr.getHand(0);
-    if (hand) {
-      hand.addEventListener('select', (event) => {
-        // Utilizar el joint "index-finger-tip" para obtener la posición de la mano.
-        const indexTip = hand.joints.get('index-finger-tip');
-        const wrist = hand.joints.get('wrist');
-        if (indexTip && wrist) {
-          const origin = new THREE.Vector3();
-          indexTip.getWorldPosition(origin);
-          const wristPos = new THREE.Vector3();
-          wrist.getWorldPosition(wristPos);
-          const direction = new THREE.Vector3().subVectors(origin, wristPos).normalize();
-          const raycaster = new THREE.Raycaster(origin, direction);
-          const intersects = raycaster.intersectObjects(panels, true);
-          if (intersects.length > 0) {
-            const selectedPanel = intersects[0].object.parent;
-            onPanelSelect(selectedPanel);
-          }
-        }
-      });
-      scene.add(hand);
-    }
-
-    // También mantener el listener para toques en pantalla.
+    // Mantenimiento del listener para toques en pantalla.
     renderer.domElement.addEventListener('touchstart', (event) => {
       const touch = event.touches[0];
       const x = (touch.clientX / window.innerWidth) * 2 - 1;
@@ -701,11 +679,39 @@
       }
     });
 
+    // Implementación de hand tracking mediante polling en cada frame.
+    const HAND_TOUCH_THRESHOLD = 0.15; // Umbral en metros
+    function checkHandInteraction() {
+      const hand = renderer.xr.getHand(0);
+      if (hand) {
+        const indexTip = hand.joints.get('index-finger-tip');
+        if (indexTip) {
+          const fingerPos = new THREE.Vector3();
+          indexTip.getWorldPosition(fingerPos);
+          panels.forEach(panel => {
+            const panelPos = new THREE.Vector3();
+            panel.getWorldPosition(panelPos);
+            const distance = fingerPos.distanceTo(panelPos);
+            if (distance < HAND_TOUCH_THRESHOLD) {
+              if (!panel.userData.triggered) {
+                panel.userData.triggered = true;
+                onPanelSelect(panel);
+              }
+            } else {
+              panel.userData.triggered = false;
+            }
+          });
+        }
+      }
+    }
+
     function animate() {
       renderer.setAnimationLoop(render);
     }
     function render() {
       renderer.render(scene, camera);
+      // Verificar interacción por hand tracking en cada frame.
+      checkHandInteraction();
     }
     animate();
   </script>
