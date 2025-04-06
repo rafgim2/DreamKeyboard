@@ -15,14 +15,13 @@
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
-  <!-- Three.js (r128) se usará desde el módulo en el script type="module" -->
   <style>
-    /* Zoom out a toda la página */
+    /* Aplicar zoom out a toda la página */
     html {
       transform: scale(0.9);
       transform-origin: top center;
     }
-    /* Fondo blanco, sin scroll y centrado */
+    /* Fondo blanco y bloquea scroll/zoom */
     body {
       background-color: #FFFFFF;
       margin: 0;
@@ -33,7 +32,7 @@
       height: 100vh;
       transition: background-color 0.3s ease;
     }
-    /* Contenedor principal de la UI */
+    /* Contenedor principal centrado con borde negro */
     #container {
       position: relative;
       display: flex;
@@ -45,6 +44,7 @@
       color: black;
       width: 350px;
       box-sizing: border-box;
+      z-index: 1;
     }
     h1 {
       margin: 0 0 20px 0;
@@ -57,7 +57,7 @@
       font-size: 0.9em;
       color: blue;
     }
-    /* Botón de pantalla completa */
+    /* Botón de pantalla completa en esquina superior derecha */
     #fullscreenBtn {
       position: absolute;
       top: 10px;
@@ -79,7 +79,7 @@
       flex-direction: column;
       position: relative;
     }
-    /* Franjas dinámicas con nombres en blanco */
+    /* Franjas dinámicas: nombres en blanco, sin selección */
     #dynamicMarkingsContainer {
       width: 100%;
       height: 100%;
@@ -95,13 +95,14 @@
       border-bottom: 1px solid white;
       font-size: 0.8em;
       color: white;
+      user-select: none;
       background-color: black;
       transition: background-color 0.3s ease;
     }
     #dynamicMarkingsContainer > div:last-child {
       border-bottom: none;
     }
-    /* Controles inferiores */
+    /* Controles inferiores: mayor separación vertical */
     #buttons {
       margin-top: 40px;
       display: flex;
@@ -110,7 +111,7 @@
       gap: 10px;
       width: 100%;
     }
-    /* Botón para cargar archivo MIDI */
+    /* Botón de cargar: fondo verde claro, texto negro */
     #loadButton {
       background-color: #90EE90;
       color: black;
@@ -120,7 +121,7 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    /* Botón del pedal */
+    /* Botón del pedal: fondo verde claro (activo por defecto), texto negro y tamaño reducido */
     #pedalBtn {
       background-color: #90EE90;
       color: black;
@@ -130,11 +131,11 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    /* Ocultar input de archivo */
+    /* Ocultar input */
     #midiFile {
       display: none;
     }
-    /* Nombre del archivo */
+    /* Nombre del archivo en cursiva y negro */
     #fileName {
       font-style: italic;
       margin-top: -10px;
@@ -156,39 +157,24 @@
       border: none;
       text-align: center;
     }
-    /* Contenedor para la escena AR (oculto por defecto) */
-    #arSceneContainer {
-      display: none;
+    /* Estilos para el canvas de AR (se posiciona detrás del contenedor en modo no-AR) */
+    canvas {
       position: fixed;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 100;
-    }
-    /* Estilos para forzar la visibilidad del ARButton */
-    button.xr-button {
-      position: fixed !important;
-      top: 20px !important;
-      left: 20px !important;
-      z-index: 10000 !important;
-      font-size: 1.2em !important;
-      padding: 12px 20px !important;
-      background-color: #000000 !important;
-      color: #ffffff !important;
-      border: none !important;
-      border-radius: 4px !important;
     }
   </style>
 </head>
 <body>
-  <!-- Interfaz principal -->
+  <!-- Contenedor de la interfaz “tradicional” (se oculta en AR) -->
   <div id="container">
+    <!-- Botón de pantalla completa -->
     <button id="fullscreenBtn">⛶</button>
     <h1>DreamTouch</h1>
     <div id="copyright">
       <a href="https://www.youtube.com/@rafgim" target="_blank" style="color: inherit; text-decoration: none;">© By Rafael Gimeno</a>
     </div>
+    <!-- Área de toque -->
     <div id="touchBox">
       <div id="dynamicMarkingsContainer">
         <div>Fortissimo</div>
@@ -199,6 +185,7 @@
         <div>Pianissimo</div>
       </div>
     </div>
+    <!-- Controles inferiores -->
     <div id="buttons">
       <label for="midiFile" id="loadButton">
         Cargar Archivo MIDI
@@ -217,26 +204,20 @@
         </select>
       </div>
       <div id="fileName"></div>
+      <!-- Botón de pedal al final -->
       <button id="pedalBtn">Pedal ON</button>
     </div>
   </div>
 
-  <!-- Contenedor para la escena AR -->
-  <div id="arSceneContainer"></div>
-
-  <!-- Código JavaScript con módulo para ARButton -->
-  <script type="module">
-    // Importar ARButton desde Three.js
-    import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/ARButton.js';
-
-    // ========================================================
-    // CÓDIGO ORIGINAL DE DREAMTOUCH (Audio, MIDI y UI normal)
-    // ========================================================
+  <script>
+    // VARIABLES PARA LAS NOTAS MIDI
     var notesToPlay = [];
     var currentNoteIndex = 0;
+
+    // CONFIGURACIÓN DEL AUDIO
     var audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-    // Filtros para suavizar el sonido
+    // Filtros para suavizar el sonido:
     var highpass = audioContext.createBiquadFilter();
     highpass.type = "highpass";
     highpass.frequency.value = 200;
@@ -246,7 +227,7 @@
     highpass.connect(lowpass);
     lowpass.connect(audioContext.destination);
 
-    // Cargar instrumento (Soundfont)
+    // Variable para el instrumento
     var pianoInstrument = null;
     if (window.Soundfont && typeof window.Soundfont.instrument === 'function') {
       Soundfont.instrument(audioContext, 'acoustic_grand_piano', { soundfont: 'MusyngKite' })
@@ -261,23 +242,30 @@
       console.error("No se encontró el método instrument en Soundfont.");
     }
 
+    // Nota por defecto
     var defaultMidiNote = 60; // C4
+    // Duración usada en modo PEDAL (fade out automático)
     var noteDuration = 3.0;
+    // Pedal activado por defecto
     var pedalOn = true;
+    // Objeto para almacenar las notas activas en modo SIN PEDAL (clave: id único por toque)
     var activeNotes = {};
 
+    // Función para convertir número MIDI a nombre (ej. "C4")
     function midiNoteToNoteName(midi) {
       var octave = Math.floor(midi / 12) - 1;
       var noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
       return noteNames[midi % 12] + octave;
     }
 
+    // Cálculo del gain según posición vertical
     function computeEffectiveGain(relativeY) {
       var minGain = 0.15;
       var maxGain = 1.0;
       return minGain + (maxGain - minGain) * (1 - relativeY);
     }
 
+    // Reproducción en modo PEDAL ON (comportamiento original)
     function playPianoNote(gain, midiNote) {
       if (pianoInstrument) {
         var noteName = midiNoteToNoteName(midiNote);
@@ -299,12 +287,13 @@
       }
     }
 
+    // Reproducción en modo SIN PEDAL: la nota se mantiene hasta detenerse manualmente
     function playNoteNonPedal(gain, midiNote) {
       if (pianoInstrument) {
         var noteName = midiNoteToNoteName(midiNote);
         var source = pianoInstrument.play(noteName, audioContext.currentTime, {
           gain: gain,
-          duration: 100,
+          duration: 100, // duración larga para mantener la nota
           velocity: gain * 127
         });
         var noteGain = audioContext.createGain();
@@ -367,7 +356,7 @@
 
     // Cargar MIDI por defecto
     function loadDefaultMidi() {
-      const defaultMidiUrl = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/Handel%20&%20Halvorsen%20Passacaglia.mid";
+      const defaultMidiUrl = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/Handel & Halvorsen Passacaglia.mid";
       const defaultFileName = "Handel & Halvorsen Passacaglia.mid";
       loadMidiFromUrl(defaultMidiUrl, defaultFileName);
     }
@@ -409,27 +398,43 @@
       return '#' + Math.floor(Math.random() * 16777215).toString(16);
     }
 
-    // Manejo de eventos de toque/puntero (vista normal)
+    // Manejo de eventos de toque/puntero en la interfaz tradicional
+
+    // Al presionar (pointerdown o touchstart)
     function handlePointerDown(e) {
+      // Evitar múltiples disparos con mouse
       if (e.pointerType === "mouse" && e.buttons !== 1) return;
+      
+      // Obtener posición y calcular gain
       var rect = e.currentTarget.getBoundingClientRect();
       var y = e.clientY;
       var relativeY = (y - rect.top) / rect.height;
       var effectiveGain = computeEffectiveGain(relativeY);
+      
+      // Generar un color aleatorio y asignarlo al fondo
       var randomColor = getRandomColor();
       document.body.style.backgroundColor = randomColor;
+      
+      // Obtener el contenedor de las franjas
       var dynamicContainer = document.getElementById('dynamicMarkingsContainer');
       var rows = dynamicContainer.children;
+      
+      // Reiniciar todas las filas a negro
       for (var i = 0; i < rows.length; i++) {
         rows[i].style.backgroundColor = 'black';
       }
+      
+      // Determinar cuál fila fue tocada según la posición
       var containerRect = dynamicContainer.getBoundingClientRect();
       var relativeYInContainer = (e.clientY - containerRect.top) / containerRect.height;
       var rowIndex = Math.floor(relativeYInContainer * rows.length);
       if (rowIndex < 0 || rowIndex >= rows.length) {
         rowIndex = 0;
       }
+      // Asignar el color aleatorio a la fila tocada
       rows[rowIndex].style.backgroundColor = randomColor;
+      
+      // Reproducir nota(s)
       var notesArray = [];
       if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
         var groupThreshold = 0.001;
@@ -462,6 +467,7 @@
       }
     }
 
+    // Al levantar el dedo (pointerup o touchend)
     function handlePointerUp(e) {
       if (!pedalOn && activeNotes[e.pointerId]) {
         activeNotes[e.pointerId].forEach(function(noteObj) {
@@ -471,12 +477,14 @@
       }
     }
 
+    // Asignación de eventos para la interfaz tradicional
     var touchBox = document.getElementById('touchBox');
     if (window.PointerEvent) {
       touchBox.addEventListener('pointerdown', handlePointerDown);
       touchBox.addEventListener('pointerup', handlePointerUp);
       touchBox.addEventListener('pointercancel', handlePointerUp);
     } else {
+      // Fallback para dispositivos táctiles
       touchBox.addEventListener('touchstart', function(e) {
         e.preventDefault();
         Array.from(e.changedTouches).forEach(function(touch) {
@@ -535,135 +543,138 @@
       }
     });
 
-    // Botón de Pedal
+    // Botón de Pedal para alternar modo
     var pedalBtn = document.getElementById('pedalBtn');
     pedalBtn.addEventListener('click', function() {
       pedalOn = !pedalOn;
       pedalBtn.textContent = pedalOn ? "Pedal ON" : "Pedal OFF";
-      pedalBtn.style.backgroundColor = pedalOn ? "#90EE90" : "#ADD8E6";
+      if (pedalOn) {
+        pedalBtn.style.backgroundColor = "#90EE90"; // Verde claro
+      } else {
+        pedalBtn.style.backgroundColor = "#ADD8E6"; // Azul claro original
+      }
       console.log("Pedal:", pedalOn ? "ON" : "OFF");
     });
 
+    // Cargar MIDI por defecto al iniciar
     window.addEventListener('load', loadDefaultMidi);
+  </script>
 
-    // ========================================================
-    // CÓDIGO PARA MODO AR USANDO ARBUTTON (Three.js)
-    // ========================================================
-    let arRenderer, arScene, arCamera, arPanels = [];
-    let raycaster = new THREE.Raycaster();
-    let pointer = new THREE.Vector2();
+  <!-- Código AR usando Three.js y ARButton -->
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
+    import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
 
-    // Matices con su valor de gain para AR
-    const dynamicMarkings = [
-      { text: "Fortissimo", gain: 1.0 },
-      { text: "Forte", gain: 0.8 },
-      { text: "Mezzo-forte", gain: 0.6 },
-      { text: "Mezzo-piano", gain: 0.4 },
-      { text: "Piano", gain: 0.2 },
-      { text: "Pianissimo", gain: 0.1 }
-    ];
+    // Crear la escena AR, cámara y renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    document.body.appendChild(renderer.domElement);
 
-    // Función para crear un panel (usando canvas como textura)
-    function createPanel(text) {
+    // Agregar el botón AR predeterminado
+    document.body.appendChild(ARButton.createButton(renderer));
+
+    // Cuando se inicie la sesión AR, ocultamos la interfaz HTML original
+    renderer.xr.addEventListener('sessionstart', () => {
+      document.getElementById('container').style.display = 'none';
+    });
+    renderer.xr.addEventListener('sessionend', () => {
+      document.getElementById('container').style.display = 'flex';
+    });
+
+    // Función para crear un panel con texto usando CanvasTexture
+    function createTextPanel(text) {
       const canvas = document.createElement('canvas');
       canvas.width = 256;
       canvas.height = 128;
       const context = canvas.getContext('2d');
+      // Fondo negro
       context.fillStyle = 'black';
       context.fillRect(0, 0, canvas.width, canvas.height);
+      // Texto blanco centrado
       context.font = '48px sans-serif';
       context.fillStyle = 'white';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
       context.fillText(text, canvas.width / 2, canvas.height / 2);
       const texture = new THREE.CanvasTexture(canvas);
-      const geometry = new THREE.PlaneGeometry(0.5, 0.25);
+      const geometry = new THREE.PlaneGeometry(1, 0.5);
       const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
       const panel = new THREE.Mesh(geometry, material);
-      panel.userData = { text: text, gain: 0 };
       return panel;
     }
 
-    // Inicializar la escena AR
-    function initAR() {
-      // Crear renderer para AR y agregarlo al contenedor
-      arRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      arRenderer.setSize(window.innerWidth, window.innerHeight);
-      arRenderer.xr.enabled = true;
-      document.getElementById('arSceneContainer').appendChild(arRenderer.domElement);
-
-      // Crear escena y cámara
-      arScene = new THREE.Scene();
-      arCamera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-      // Crear paneles (los mismos matices) y posicionarlos frente a la cámara
-      const startY = 0.5, gap = 0.3;
-      dynamicMarkings.forEach((item, index) => {
-        const panel = createPanel(item.text);
-        panel.position.set(0, startY - index * gap, -2);
-        panel.userData.gain = item.gain;
-        arScene.add(panel);
-        arPanels.push(panel);
-      });
-
-      // Luz ambiental para la escena
-      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-      light.position.set(0, 1, 0);
-      arScene.add(light);
-
-      // Escuchar eventos pointer sobre el canvas AR
-      arRenderer.domElement.addEventListener('pointerdown', onARPointerDown, false);
-
-      // Loop de renderizado AR
-      arRenderer.setAnimationLoop(() => { arRenderer.render(arScene, arCamera); });
-    }
-
-    // Manejar interacción en AR: detectar intersección con los paneles
-    function onARPointerDown(event) {
-      pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-      pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
-      raycaster.setFromCamera(pointer, arCamera);
-      const intersects = raycaster.intersectObjects(arPanels);
-      if (intersects.length > 0) {
-        const panel = intersects[0].object;
-        const originalColor = panel.material.color.getHex();
-        panel.material.color.setHex(0xffff00);
-        setTimeout(() => { panel.material.color.setHex(0xffffff); }, 200);
-        if (pedalOn) {
-          playPianoNote(panel.userData.gain, defaultMidiNote);
-        } else {
-          playNoteNonPedal(panel.userData.gain, defaultMidiNote);
-        }
-      }
-    }
-
-    // Callback al iniciar la sesión AR: ocultar la UI normal y mostrar el contenedor AR
-    function onARSessionStart() {
-      document.getElementById('container').style.display = 'none';
-      document.getElementById('arSceneContainer').style.display = 'block';
-      initAR();
-    }
-
-    // Callback al finalizar la sesión AR: se restaura la UI normal y se limpia el renderer AR
-    function onARSessionEnd() {
-      document.getElementById('container').style.display = 'flex';
-      document.getElementById('arSceneContainer').style.display = 'none';
-      if (arRenderer && arRenderer.domElement) {
-        arRenderer.domElement.removeEventListener('pointerdown', onARPointerDown);
-        document.getElementById('arSceneContainer').removeChild(arRenderer.domElement);
-      }
-    }
-
-    // Se crea un renderer temporal para que ARButton pueda inicializarse
-    const tempRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    tempRenderer.xr.enabled = true;
-    // Se agrega el ARButton predeterminado (gestiona la petición de sesión AR)
-    const arButton = ARButton.createButton(tempRenderer, {
-      requiredFeatures: ['hit-test'],
-      onSessionStart: onARSessionStart,
-      onSessionEnd: onARSessionEnd
+    // Crear los 6 paneles con los nombres de matices
+    const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
+    const panels = [];
+    panelTexts.forEach((text, index) => {
+      const panel = createTextPanel(text);
+      // Ubicar los paneles en forma vertical frente al usuario
+      panel.position.set(0, 1 - index * 0.6, -2);
+      scene.add(panel);
+      panels.push(panel);
     });
-    document.body.appendChild(arButton);
+
+    // Función para manejar la interacción en AR (al "golpear" un panel)
+    function onPanelSelect(panel) {
+      // Se muestra un efecto visual simple (cambio de color momentáneo)
+      panel.material.color.set(0xff0000);
+      setTimeout(() => {
+        panel.material.color.set(0xffffff);
+      }, 200);
+      // Se asigna una nota MIDI basada en el índice del panel
+      const panelIndex = panels.indexOf(panel);
+      // Puedes definir un mapeo propio de notas. En este ejemplo se usan valores arbitrarios.
+      const midiNotes = [72, 74, 76, 77, 79, 81];
+      const midiNote = midiNotes[panelIndex] || defaultMidiNote;
+      const effectiveGain = 1.0;
+      if (pedalOn) {
+        playPianoNote(effectiveGain, midiNote);
+      } else {
+        playNoteNonPedal(effectiveGain, midiNote);
+      }
+    }
+
+    // Configurar un controlador XR para detectar la acción “select”
+    const controller = renderer.xr.getController(0);
+    controller.addEventListener('select', () => {
+      // Raycast desde la posición del controlador
+      const tempMatrix = new THREE.Matrix4();
+      tempMatrix.identity().extractRotation(controller.matrixWorld);
+      const raycaster = new THREE.Raycaster();
+      raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+      const intersects = raycaster.intersectObjects(panels);
+      if (intersects.length > 0) {
+        onPanelSelect(intersects[0].object);
+      }
+    });
+    scene.add(controller);
+
+    // Para dispositivos sin controlador XR (por ejemplo, móviles), se agrega el evento touch
+    renderer.domElement.addEventListener('touchstart', (event) => {
+      const touch = event.touches[0];
+      // Convertir posición de toque a coordenadas normalizadas
+      const x = (touch.clientX / window.innerWidth) * 2 - 1;
+      const y = - (touch.clientY / window.innerHeight) * 2 + 1;
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+      const intersects = raycaster.intersectObjects(panels);
+      if (intersects.length > 0) {
+        onPanelSelect(intersects[0].object);
+      }
+    });
+
+    // Loop de animación AR
+    function animate() {
+      renderer.setAnimationLoop(render);
+    }
+    function render() {
+      renderer.render(scene, camera);
+    }
+    animate();
   </script>
 </body>
 </html>
