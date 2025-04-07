@@ -573,19 +573,19 @@
     // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      // Panel: mitad de largo (ancho 0.2) y altura 0.1
-      const panelWidth = 0.2, panelHeight = 0.1;
-      // Fondo del panel: morado, semitransparente y doble cara
+      // Panel: la mitad de largo respecto a la versión anterior (ancho 0.1, altura 0.05)
+      const panelWidth = 0.1, panelHeight = 0.05;
+      // Fondo del panel: color morado, semitransparente y doble cara
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x800080, 
         transparent: true, 
         opacity: 0.5,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide 
       });
       const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
       panelGroup.add(bgMesh);
-      // Texto en canvas: abreviaturas de matices
+      // Texto en un canvas con las abreviaturas de matices
       const canvas = document.createElement('canvas');
       canvas.width = 256;
       canvas.height = 64;
@@ -600,13 +600,13 @@
       const textMaterial = new THREE.MeshBasicMaterial({ 
         map: textTexture, 
         transparent: true,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide 
       });
       const textGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const textMesh = new THREE.Mesh(textGeometry, textMaterial);
       textMesh.renderOrder = 1;
       panelGroup.add(textMesh);
-      // Collider invisible: 20% mayor para mejor detección
+      // Collider invisible: geometría un 20% mayor para mejorar la detección
       const colliderGeometry = new THREE.PlaneGeometry(panelWidth * 1.2, panelHeight * 1.2);
       const colliderMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x000000, 
@@ -614,33 +614,34 @@
         transparent: true 
       });
       const colliderMesh = new THREE.Mesh(colliderGeometry, colliderMaterial);
+      // Offset pequeño en z para evitar conflictos
       colliderMesh.position.set(0, 0, 0.01);
       panelGroup.add(colliderMesh);
       panelGroup.userData.bgMaterial = bgMaterial;
       return panelGroup;
     }
 
-    // Crear los paneles y ubicarlos en un arco frente al usuario
-    // Se muestran las abreviaturas: ff, f, mf, mp, p, pp
+    // Crear los paneles y ubicarlos en un arco frente al usuario,
+    // con abreviaturas: ff, f, mf, mp, p, pp.
     const panelTexts = ["ff", "f", "mf", "mp", "p", "pp"];
     const panels = [];
     const numPanels = panelTexts.length;
-    const radius = 0.8;         // Radio reducido para estar más cerca
-    const arcSpan = Math.PI / 3;  // Arco de 60°
+    const radius = 0.8;            // Radio reducido para estar más cerca
+    const arcSpan = Math.PI / 3;     // Arco de 60° (en radianes)
     const startAngle = -arcSpan / 2;
     const angleIncrement = arcSpan / (numPanels - 1);
+    // Definir una altura baja para los paneles
+    const yPos = -0.5;
     panelTexts.forEach((text, index) => {
       const angle = startAngle + index * angleIncrement;
-      // Coordenadas polares: con angle=0 frente al usuario
+      // Coordenadas polares (angle = 0 es frente al usuario)
       const x = radius * Math.sin(angle);
       const z = -radius * Math.cos(angle);
       const panel = createTextPanel(text);
-      // Ubicar los paneles: más bajos (y = -0.5)
-      panel.position.set(x, -0.5, z);
-      // Orientar el panel para que mire al centro (usuario) usando su misma altura
-      panel.lookAt(new THREE.Vector3(0, panel.position.y, 0));
-      // Rotar el panel en Z para girarlo hacia el usuario (–30°)
-      panel.rotation.z = -Math.PI / 6;
+      // Ubicar el panel: más cerca y más bajo
+      panel.position.set(x, yPos, z);
+      // Orientar el panel para que mire hacia el usuario (al centro) sin inclinarse hacia arriba o abajo
+      panel.lookAt(new THREE.Vector3(0, yPos, 0));
       scene.add(panel);
       panels.push(panel);
     });
@@ -670,7 +671,7 @@
     });
     scene.add(controller0);
 
-    // Umbral de colisión ampliado para detección en toda el área del panel.
+    // Ampliamos el umbral de colisión para detectar toques en cualquier parte del panel.
     function checkHandCollisions() {
       const threshold = 0.12;
       const now = performance.now();
