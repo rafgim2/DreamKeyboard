@@ -236,6 +236,12 @@
       return noteNames[midi % 12] + octave;
     }
 
+    function computeEffectiveGain(relativeY) {
+      var minGain = 0.15;
+      var maxGain = 1.0;
+      return minGain + (maxGain - minGain) * (1 - relativeY);
+    }
+
     function playPianoNote(gain, midiNote) {
       if (pianoInstrument) {
         var noteName = midiNoteToNoteName(midiNote);
@@ -490,8 +496,10 @@
 
     window.addEventListener('load', loadDefaultMidi);
 
-    // Función global que reproducirá la nota usando la ganancia calculada (en función de la posición en el arco)
-    window.handleArcPanelTouch = function(effectiveGain) {
+    // Función global para manejar la selección de panel en AR (calcula el gain según el índice)
+    window.handleARPanelSelect = function(panelIndex) {
+      const minGain = 0.15, maxGain = 1.0;
+      const effectiveGain = maxGain - (panelIndex / 5) * (maxGain - minGain);
       if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
         let groupThreshold = 0.001;
         let groupEnd = currentNoteIndex + 1;
@@ -543,11 +551,13 @@
       optionalFeatures: ['hand-tracking']
     }));
 
-    // Agregar ambas manos y controladores a la escena
+    // Agregar ambas manos a la escena
     const rightHand = renderer.xr.getHand(0);
     const leftHand  = renderer.xr.getHand(1);
     scene.add(rightHand);
     scene.add(leftHand);
+
+    // Agregar controladores para detectar colisiones
     const controller0 = renderer.xr.getController(0);
     const controller1 = renderer.xr.getController(1);
     scene.add(controller0);
@@ -560,69 +570,107 @@
       document.getElementById('container').style.display = 'flex';
     });
 
-    // Función para crear un panel en forma de arco (120°) semitransparente.
-    // Se define como un sector anular con radio interno y externo.
-    function createArcPanel() {
-      const arcPanelGroup = new THREE.Group();
-      const innerRadius = 0.8, outerRadius = 1.0;
-      const startAngle = -Math.PI/3; // -60° (izquierda)
-      const endAngle = Math.PI/3;    // 60° (derecha)
-      
-      // Crear la forma del arco en el plano XY
-      const shape = new THREE.Shape();
-      shape.moveTo(innerRadius * Math.cos(startAngle), innerRadius * Math.sin(startAngle));
-      shape.absarc(0, 0, innerRadius, startAngle, endAngle, false);
-      shape.lineTo(outerRadius * Math.cos(endAngle), outerRadius * Math.sin(endAngle));
-      shape.absarc(0, 0, outerRadius, endAngle, startAngle, true);
-      shape.lineTo(innerRadius * Math.cos(startAngle), innerRadius * Math.sin(startAngle));
-      
-      const geometry = new THREE.ShapeGeometry(shape);
-      // Material semitransparente
-      const material = new THREE.MeshBasicMaterial({ color: 0x8888ff, opacity: 0.5, transparent: true, side: THREE.DoubleSide });
-      const arcMesh = new THREE.Mesh(geometry, material);
-      // Rotar para que el arco quede horizontal (en el plano XZ)
-      arcMesh.rotation.x = -Math.PI/2;
-      arcPanelGroup.add(arcMesh);
-      // Guardar parámetros útiles para la detección de colisión
-      arcPanelGroup.userData = { innerRadius, outerRadius, startAngle, endAngle, lastActivated: 0 };
-      return arcPanelGroup;
+    // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
+    function createTextPanel(text) {
+      const panelGroup = new THREE.Group();
+      // Panel más pequeño: mitad de largo (ancho 0.2) y altura 0.1
+      const panelWidth = 0.2, panelHeight = 0.1;
+      // Fondo del panel: color morado y semitransparente
+      const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
+      const bgMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x800080, 
+        transparent: true, 
+        opacity: 0.5 
+      });
+      const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
+      panelGroup.add(bgMesh);
+      // Texto en un canvas: se muestran las abreviaturas de matices
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const context = canvas.getContext('2d');
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.font = '32px sans-serif';
+      context.fillStyle = 'white';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(text, canvas.width / 2, canvas.height / 2);
+      const textTexture = new THREE.CanvasTexture(canvas);
+      const textMaterial = new THREE.MeshBasicMaterial({ 
+        map: textTexture, 
+        transparent: true 
+      });
+      const textGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
+      const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+      textMesh.renderOrder = 1;
+      panelGroup.add(textMesh);
+      // Collider invisible: malla con geometría 20% mayor para mejorar la detección
+      const colliderGeometry = new THREE.PlaneGeometry(panelWidth * 1.2, panelHeight * 1.2);
+      const colliderMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x000000, 
+        opacity: 0, 
+        transparent: true 
+      });
+      const colliderMesh = new THREE.Mesh(colliderGeometry, colliderMaterial);
+      // Pequeño offset en z para evitar conflictos
+      colliderMesh.position.set(0, 0, 0.01);
+      panelGroup.add(colliderMesh);
+      panelGroup.userData.bgMaterial = bgMaterial;
+      return panelGroup;
     }
 
-    // Crear el único panel en forma de arco y posicionarlo frente al usuario.
-    const arcPanel = createArcPanel();
-    // Posición: ajusta la altura y la distancia según necesites.
-    arcPanel.position.set(0, 0.5, -1);
-    scene.add(arcPanel);
+    // Crear los paneles y ubicarlos en un arco frente al usuario
+    // Se muestran las abreviaturas de matices: ff, f, mf, mp, p, pp
+    const panelTexts = ["ff", "f", "mf", "mp", "p", "pp"];
+    const panels = [];
+    const numPanels = panelTexts.length;
+    const radius = 1.2;            // Radio del arco
+    const arcSpan = Math.PI / 3;     // Arco de 60° (en radianes)
+    const startAngle = -arcSpan / 2;
+    const angleIncrement = arcSpan / (numPanels - 1);
+    panelTexts.forEach((text, index) => {
+      const angle = startAngle + index * angleIncrement;
+      // Coordenadas polares (con angle=0 frente al usuario)
+      const x = radius * Math.sin(angle);
+      const z = -radius * Math.cos(angle);
+      const panel = createTextPanel(text);
+      // Ubicar los paneles en el plano horizontal (y = 0)
+      panel.position.set(x, 0, z);
+      // Rotar el panel para que quede acostado: giramos 90° (–90°) sobre el eje X
+      panel.rotation.x = -Math.PI / 2;
+      scene.add(panel);
+      panels.push(panel);
+    });
 
-    // Función que procesa la colisión en un punto dado (en coordenadas mundo)
-    // Se transforma el punto al sistema local del panel y se comprueba si está dentro del sector.
-    function processCollisionAtPoint(worldPos) {
-      // Convertir al sistema local del panel
-      const localPos = arcPanel.worldToLocal(worldPos.clone());
-      // Invertir la rotación aplicada al arco (fue -PI/2) para obtener coordenadas originales en XY
-      localPos.applyAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI/2);
-      const x = localPos.x, y = localPos.y;
-      const r = Math.sqrt(x * x + y * y);
-      const theta = Math.atan2(y, x);  // Ángulo en radianes
-      const { innerRadius, outerRadius, startAngle, endAngle, lastActivated } = arcPanel.userData;
-      if (r >= innerRadius && r <= outerRadius && theta >= startAngle && theta <= endAngle) {
-        // Calcular el parámetro horizontal: 0 (izquierda) a 1 (derecha)
-        const normalized = (theta - startAngle) / (endAngle - startAngle);
-        const minGain = 0.15, maxGain = 1.0;
-        // Ganancia: cuanto más a la izquierda (normalized=0) más fuerte (maxGain),
-        // y a la derecha (normalized=1) más suave (minGain)
-        const effectiveGain = maxGain - normalized * (maxGain - minGain);
-        const now = performance.now();
-        if (!arcPanel.userData.lastActivated || now - arcPanel.userData.lastActivated > 250) {
-          arcPanel.userData.lastActivated = now;
-          window.handleArcPanelTouch(effectiveGain);
-        }
+    function onPanelSelect(panel) {
+      const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+      panel.userData.bgMaterial.color.copy(randomColor);
+      setTimeout(() => {
+        panel.userData.bgMaterial.color.set(0x800080);
+      }, 200);
+      const panelIndex = panels.indexOf(panel);
+      window.handleARPanelSelect(panelIndex);
+    }
+
+    // Configurar el controlador XR para dispositivos con mandos.
+    controller0.addEventListener('select', () => {
+      const tempMatrix = new THREE.Matrix4();
+      tempMatrix.identity().extractRotation(controller0.matrixWorld);
+      const raycaster = new THREE.Raycaster();
+      raycaster.ray.origin.setFromMatrixPosition(controller0.matrixWorld);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+      const intersects = raycaster.intersectObjects(panels, true);
+      if (intersects.length > 0) {
+        const selectedPanel = intersects[0].object.parent;
+        onPanelSelect(selectedPanel);
       }
-    }
+    });
+    scene.add(controller0);
 
-    // Función que comprueba colisiones con manos y controladores usando la posición del dedo o mando.
-    function checkArcPanelCollisions() {
-      // Manos (hand tracking)
+    // Ampliamos el umbral de colisión para que se active al tocar cualquier parte del panel.
+    function checkHandCollisions() {
+      const threshold = 0.12;
+      const now = performance.now();
       for (let handIndex = 0; handIndex < 2; handIndex++) {
         const hand = renderer.xr.getHand(handIndex);
         if (hand) {
@@ -639,37 +687,59 @@
           } else {
             continue;
           }
-          processCollisionAtPoint(fingerPos);
+          panels.forEach(panel => {
+            const panelCenter = new THREE.Vector3();
+            panel.getWorldPosition(panelCenter);
+            if (fingerPos.distanceTo(panelCenter) < threshold) {
+              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 250) {
+                onPanelSelect(panel);
+                panel.userData.lastActivated = now;
+              }
+            }
+          });
         }
       }
-      // Controladores (mandos)
+    }
+
+    function checkControllerCollisions() {
+      const threshold = 0.12;
+      const now = performance.now();
       const controllers = [];
       if (controller0) controllers.push(controller0);
       if (controller1) controllers.push(controller1);
       controllers.forEach(ctrl => {
         let ctrlPos = new THREE.Vector3();
         ctrl.getWorldPosition(ctrlPos);
-        processCollisionAtPoint(ctrlPos);
+        panels.forEach(panel => {
+          const panelCenter = new THREE.Vector3();
+          panel.getWorldPosition(panelCenter);
+          if (ctrlPos.distanceTo(panelCenter) < threshold) {
+            if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 250) {
+              onPanelSelect(panel);
+              panel.userData.lastActivated = now;
+            }
+          }
+        });
       });
     }
 
-    // Listener para toques en pantalla: se utiliza raycasting sobre el arco.
+    // Listener para toques en pantalla.
     renderer.domElement.addEventListener('touchstart', (event) => {
       const touch = event.touches[0];
-      const mouse = new THREE.Vector2();
-      mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = - (touch.clientY / window.innerHeight) * 2 + 1;
+      const x = (touch.clientX / window.innerWidth) * 2 - 1;
+      const y = - (touch.clientY / window.innerHeight) * 2 + 1;
       const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObject(arcPanel, true);
+      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+      const intersects = raycaster.intersectObjects(panels, true);
       if (intersects.length > 0) {
-        const point = intersects[0].point;
-        processCollisionAtPoint(point);
+        const selectedPanel = intersects[0].object.parent;
+        onPanelSelect(selectedPanel);
       }
     });
 
     function render() {
-      checkArcPanelCollisions();
+      checkHandCollisions();
+      checkControllerCollisions();
       renderer.render(scene, camera);
     }
     function animate() {
