@@ -557,7 +557,7 @@
     scene.add(rightHand);
     scene.add(leftHand);
 
-    // También se agregarán los controladores para poder detectar colisiones con ellos
+    // Agregar controladores para detectar colisiones
     const controller0 = renderer.xr.getController(0);
     const controller1 = renderer.xr.getController(1);
     scene.add(controller0);
@@ -570,15 +570,17 @@
       document.getElementById('container').style.display = 'flex';
     });
 
-    // Función para crear un panel en AR: grupo con fondo y texto.
+    // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      // Dimensiones reducidas a la mitad
-      const panelWidth = 0.5, panelHeight = 0.125;
+      // Tamaño reducido: panel más pequeño
+      const panelWidth = 0.4, panelHeight = 0.1;
+      // Fondo del panel
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
       const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
       panelGroup.add(bgMesh);
+      // Texto en un canvas
       const canvas = document.createElement('canvas');
       canvas.width = 256;
       canvas.height = 64;
@@ -595,22 +597,35 @@
       const textMesh = new THREE.Mesh(textGeometry, textMaterial);
       textMesh.renderOrder = 1;
       panelGroup.add(textMesh);
+      // Collider invisible: malla con geometría un 20% mayor para detección
+      const colliderGeometry = new THREE.PlaneGeometry(panelWidth * 1.2, panelHeight * 1.2);
+      const colliderMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, transparent: true });
+      const colliderMesh = new THREE.Mesh(colliderGeometry, colliderMaterial);
+      // Pequeño offset en z para evitar conflictos
+      colliderMesh.position.set(0, 0, 0.01);
+      panelGroup.add(colliderMesh);
       panelGroup.userData.bgMaterial = bgMaterial;
       return panelGroup;
     }
 
-    // Crear los paneles y ubicarlos: se colocan lado a lado en horizontal y se rotan para quedar paralelos al suelo
+    // Crear los paneles y ubicarlos en un arco frente al usuario
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
-    const spacing = 0.6; // Espacio entre paneles
+    const numPanels = panelTexts.length;
+    const radius = 1.2;            // Radio del arco
+    const arcSpan = Math.PI / 3;     // Arco de 60° (en radianes)
+    const startAngle = -arcSpan / 2;
+    const angleIncrement = arcSpan / (numPanels - 1);
     panelTexts.forEach((text, index) => {
+      const angle = startAngle + index * angleIncrement;
+      // Usamos coordenadas polares: si angle=0 es directamente al frente (-z)
+      const x = radius * Math.sin(angle);
+      const z = -radius * Math.cos(angle);
       const panel = createTextPanel(text);
-      // Calcular un desplazamiento horizontal centrado
-      const offsetX = (index - (panelTexts.length - 1) / 2) * spacing;
-      // Ubicar los paneles a lo largo del eje X, con valores fijos en Y y Z
-      panel.position.set(offsetX, -0.8, -1);
-      // Rotar el panel para que quede horizontal (tumbado)
-      panel.rotation.x = -Math.PI / 2;
+      // Posición: en el plano horizontal, con y fijado (puedes ajustar la altura)
+      panel.position.set(x, 0, z);
+      // Orientar el panel para que mire al centro (usuario en 0,0,0)
+      panel.lookAt(new THREE.Vector3(0, panel.position.y, 0));
       scene.add(panel);
       panels.push(panel);
     });
@@ -625,7 +640,7 @@
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Configurar el controlador XR para dispositivos con controladores.
+    // Configurar el controlador XR para dispositivos con mandos.
     controller0.addEventListener('select', () => {
       const tempMatrix = new THREE.Matrix4();
       tempMatrix.identity().extractRotation(controller0.matrixWorld);
@@ -640,9 +655,9 @@
     });
     scene.add(controller0);
 
-    // Función para chequear colisiones con las manos (cooldown de 250ms)
+    // Aumentamos el umbral de colisión para que funcione al tocar cualquier parte del panel.
     function checkHandCollisions() {
-      const threshold = 0.06;
+      const threshold = 0.12;
       const now = performance.now();
       for (let handIndex = 0; handIndex < 2; handIndex++) {
         const hand = renderer.xr.getHand(handIndex);
@@ -674,9 +689,8 @@
       }
     }
 
-    // Función para chequear colisiones con los controladores (mandos)
     function checkControllerCollisions() {
-      const threshold = 0.06;
+      const threshold = 0.12;
       const now = performance.now();
       const controllers = [];
       if (controller0) controllers.push(controller0);
