@@ -573,7 +573,7 @@
     // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      // Panel: ancho 0.1 y altura 0.05 (la mitad de largo respecto a versiones previas)
+      // Panel: ancho 0.15 y altura 0.05
       const panelWidth = 0.15, panelHeight = 0.05;
       // Fondo: morado, semitransparente, doble cara
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
@@ -641,7 +641,7 @@
     const panels = [];
     const numPanels = panelTexts.length;
     const radius = 0.8;            // Más cerca
-    const arcSpan = Math.PI / 2;     // Arco de 60° (en radianes)
+    const arcSpan = Math.PI / 2;     // Arco de 90° en total
     const startAngle = -arcSpan / 2;
     const angleIncrement = arcSpan / (numPanels - 1);
     const yPos = -0.5;             // Altura baja
@@ -660,12 +660,52 @@
       panels.push(panel);
     });
 
+    // Función para crear el efecto visual del rectángulo que se eleva
+    function createNoteEffect(panel) {
+      // Dimensiones del rectángulo (ajusta según necesites)
+      const width = 0.1, height = 0.02;
+      const geometry = new THREE.PlaneGeometry(width, height);
+      const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+      const noteRect = new THREE.Mesh(geometry, material);
+      
+      // Posicionar el rectángulo en la parte superior del panel.
+      // Al agregarlo como hijo del panel, hereda su transformación.
+      noteRect.position.set(0, 0.05, 0); // Ajusta el offset según el tamaño del panel
+      panel.add(noteRect);
+      
+      // Configuración de la animación: duración y distancia a subir.
+      const duration = 1000; // milisegundos
+      const totalUpDistance = 0.1; // distancia total que se moverá hacia arriba
+      const startTime = performance.now();
+      
+      function animateEffect() {
+        const elapsed = performance.now() - startTime;
+        const progress = elapsed / duration;
+        
+        // Mover hacia arriba: incrementa la posición Y
+        noteRect.position.y = 0.05 + progress * totalUpDistance;
+        // Desvanecer: reducir la opacidad
+        noteRect.material.opacity = 1 - progress;
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateEffect);
+        } else {
+          // Al finalizar, eliminar el rectángulo del panel
+          panel.remove(noteRect);
+        }
+      }
+      
+      animateEffect();
+    }
+
     function onPanelSelect(panel) {
       const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
       panel.userData.bgMaterial.color.copy(randomColor);
       setTimeout(() => {
         panel.userData.bgMaterial.color.set(0x800080);
       }, 200);
+      // Agregar el efecto visual del rectángulo
+      createNoteEffect(panel);
       const panelIndex = panels.indexOf(panel);
       window.handleARPanelSelect(panelIndex);
     }
