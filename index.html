@@ -655,7 +655,7 @@
       // "Tumbamos" el panel: rotación -90° en X para que quede paralelo al suelo.
       panel.rotation.x = -Math.PI / 2;
       // Rotamos en Z para que la cara frontal del panel mire al usuario.
-      panel.rotation.z = Math.atan2(panel.position.x, -panel.position.z);
+      panel.rotation.z = -Math.atan2(panel.position.x, -panel.position.z);
       scene.add(panel);
       panels.push(panel);
     });
