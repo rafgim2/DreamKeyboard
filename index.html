@@ -670,10 +670,17 @@
   panel.getWorldPosition(startPos);
   startPos.y += 0.03; // Offset inicial
 
-  // Crear el rectángulo
+  // Obtener el color actual del panel
+  const panelColor = panel.userData.bgMaterial.color.getHex();
+
+  // Crear el rectángulo con el mismo color del panel
   const width = 0.1, height = 0.02;
   const geometry = new THREE.PlaneGeometry(width, height);
-  const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+  const material = new THREE.MeshBasicMaterial({ 
+    color: panelColor, 
+    transparent: true, 
+    opacity: 1 
+  });
   const noteRect = new THREE.Mesh(geometry, material);
   noteRect.position.copy(startPos);
   // Orientar para que mire al usuario (la cámara)
@@ -681,11 +688,9 @@
   // Agregar a la escena
   scene.add(noteRect);
 
-  // Define la distancia que quieres que suba (puedes cambiar este valor)
-  const totalUpDistance = 4.3; // Por ejemplo, 0.3 unidades
-  // Define una velocidad constante en unidades/segundo (en el ejemplo, la velocidad es 0.1 unidades/segundo)
+  // Define la distancia que quieres que suba y la velocidad
+  const totalUpDistance = 2.3;
   const constantSpeed = 0.1; 
-  // Calcula la duración en ms para mantener esa velocidad
   const duration = (totalUpDistance / constantSpeed) * 1000; // duración en ms
 
   // Agregar el efecto al array global para actualizarlo en cada frame
@@ -697,6 +702,7 @@
     totalUpDistance: totalUpDistance
   });
 }
+
 
     // Función para actualizar todos los efectos activos en cada frame
     function updateNoteEffects() {
