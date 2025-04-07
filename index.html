@@ -573,9 +573,9 @@
     // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      // Panel: la mitad de largo respecto a la versión anterior (ancho 0.1, altura 0.05)
+      // Panel: mitad de largo respecto a la versión anterior (ancho 0.1, altura 0.05)
       const panelWidth = 0.1, panelHeight = 0.05;
-      // Fondo del panel: color morado, semitransparente y doble cara
+      // Fondo del panel: color morado, semitransparente, doble cara
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x800080, 
@@ -584,7 +584,9 @@
         side: THREE.DoubleSide 
       });
       const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
+      bgMesh.renderOrder = 0;
       panelGroup.add(bgMesh);
+      
       // Texto en un canvas con las abreviaturas de matices
       const canvas = document.createElement('canvas');
       canvas.width = 256;
@@ -604,29 +606,36 @@
       });
       const textGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-      textMesh.renderOrder = 1;
+      // Desplazar ligeramente el texto para que se vea por encima del fondo
+      textMesh.position.z = 0.001;
+      textMesh.renderOrder = 2;
       panelGroup.add(textMesh);
-      // Collider invisible: geometría un 20% mayor para mejorar la detección
+      
+      // Collider invisible: geometría 20% mayor para mejorar la detección
       const colliderGeometry = new THREE.PlaneGeometry(panelWidth * 1.2, panelHeight * 1.2);
       const colliderMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x000000, 
         opacity: 0, 
         transparent: true 
       });
+      // Evitar que el collider oculte (no escriba en el buffer de color)
+      colliderMaterial.colorWrite = false;
       const colliderMesh = new THREE.Mesh(colliderGeometry, colliderMaterial);
-      // Offset pequeño en z para evitar conflictos
-      colliderMesh.position.set(0, 0, 0.01);
+      // Offset pequeño en z para que quede encima del fondo pero detrás del texto
+      colliderMesh.position.z = 0.002;
+      colliderMesh.renderOrder = 1;
       panelGroup.add(colliderMesh);
+      
       panelGroup.userData.bgMaterial = bgMaterial;
       return panelGroup;
     }
 
     // Crear los paneles y ubicarlos en un arco frente al usuario,
-    // con abreviaturas: ff, f, mf, mp, p, pp.
+    // usando las abreviaturas: ff, f, mf, mp, p, pp.
     const panelTexts = ["ff", "f", "mf", "mp", "p", "pp"];
     const panels = [];
     const numPanels = panelTexts.length;
-    const radius = 0.8;            // Radio reducido para estar más cerca
+    const radius = 0.8;            // Más cerca
     const arcSpan = Math.PI / 3;     // Arco de 60° (en radianes)
     const startAngle = -arcSpan / 2;
     const angleIncrement = arcSpan / (numPanels - 1);
@@ -638,10 +647,10 @@
       const x = radius * Math.sin(angle);
       const z = -radius * Math.cos(angle);
       const panel = createTextPanel(text);
-      // Ubicar el panel: más cerca y más bajo
+      // Ubicar el panel
       panel.position.set(x, yPos, z);
-      // Orientar el panel para que mire hacia el usuario (al centro) sin inclinarse hacia arriba o abajo
-      panel.lookAt(new THREE.Vector3(0, yPos, 0));
+      // "Tumbamos" el panel: rotarlo 90° sobre el eje X para que quede paralelo al suelo
+      panel.rotation.x = -Math.PI / 2;
       scene.add(panel);
       panels.push(panel);
     });
