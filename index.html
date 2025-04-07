@@ -599,13 +599,14 @@
       return panelGroup;
     }
 
-    // Crear los paneles y ubicarlos: se ha reducido la separación vertical para adaptarlos al tamaño.
+    // Crear los paneles y ubicarlos horizontalmente (como teclas de piano)
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
+    const spacing = 0.16; // Ajusta la separación entre paneles según necesites
+    const startX = -((panelTexts.length - 1) * spacing) / 2; // Centrar horizontalmente
     panelTexts.forEach((text, index) => {
       const panel = createTextPanel(text);
-      // Se ajusta la posición vertical: la separación se reduce proporcionalmente
-      panel.position.set(0, 0.25 - index * 0.15, -0.8);
+      panel.position.set(startX + index * spacing, 0, -0.8);
       scene.add(panel);
       panels.push(panel);
     });
