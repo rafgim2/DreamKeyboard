@@ -580,7 +580,7 @@
       const bgMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x800080, 
         transparent: true, 
-        opacity: 0.5,
+        opacity: 0.75,
         side: THREE.DoubleSide 
       });
       const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
@@ -613,12 +613,12 @@
       const textGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const textMesh = new THREE.Mesh(textGeometry, textMaterial);
       // Posicionamos el texto ligeramente sobre el fondo.
-      textMesh.position.z = 0.01;
+      textMesh.position.z = 0.005;
       textMesh.renderOrder = 2;
       panelGroup.add(textMesh);
       
       // Collider invisible para detección (20% mayor)
-      const colliderGeometry = new THREE.PlaneGeometry(panelWidth * 1.2, panelHeight * 1.2);
+      const colliderGeometry = new THREE.PlaneGeometry(panelWidth * 1.2, panelHeight * 0.2);
       const colliderMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x000000, 
         opacity: 0, 
@@ -709,7 +709,7 @@
             const panelCenter = new THREE.Vector3();
             panel.getWorldPosition(panelCenter);
             if (fingerPos.distanceTo(panelCenter) < threshold) {
-              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 250) {
+              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 150) {
                 onPanelSelect(panel);
                 panel.userData.lastActivated = now;
               }
@@ -732,7 +732,7 @@
           const panelCenter = new THREE.Vector3();
           panel.getWorldPosition(panelCenter);
           if (ctrlPos.distanceTo(panelCenter) < threshold) {
-            if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 250) {
+            if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 150) {
               onPanelSelect(panel);
               panel.userData.lastActivated = now;
             }
