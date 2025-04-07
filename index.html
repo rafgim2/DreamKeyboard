@@ -545,6 +545,9 @@
     renderer.xr.enabled = true;
     document.body.appendChild(renderer.domElement);
 
+    // Array para almacenar los efectos visuales activos
+    const activeNoteEffects = [];
+
     // Crear botón AR con soporte para hit-test y hand-tracking
     document.body.appendChild(ARButton.createButton(renderer, {
       requiredFeatures: ['hit-test'],
@@ -662,47 +665,47 @@
 
     // Función para crear el efecto visual del rectángulo que se eleva
     function createNoteEffect(panel) {
-      // Obtener la posición mundial del panel
+      // Obtener la posición mundial del panel y agregar un offset en Y
       const startPos = new THREE.Vector3();
       panel.getWorldPosition(startPos);
-      // Ajustar la posición inicial: agregamos un pequeño offset en Y (global)
-      startPos.y += 0.03; // ajusta según necesites
-
-      // Crear el rectángulo de efecto
+      startPos.y += 0.03;
+      // Crear el rectángulo
       const width = 0.1, height = 0.02;
       const geometry = new THREE.PlaneGeometry(width, height);
       const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
       const noteRect = new THREE.Mesh(geometry, material);
       noteRect.position.copy(startPos);
-      // Orientar para que mire al usuario (cámara)
+      // Orientar para que mire al usuario
       noteRect.lookAt(camera.position);
-      // Añadir a la escena
+      // Agregar a la escena
       scene.add(noteRect);
+      
+      // Crear objeto efecto y agregarlo al array global
+      activeNoteEffects.push({
+        noteRect: noteRect,
+        startTime: performance.now(),
+        duration: 1000, // ms
+        startPos: startPos.clone(),
+        totalUpDistance: 0.1
+      });
+    }
 
-      // Parámetros de animación
-      const duration = 1000; // duración en ms
-      const totalUpDistance = 0.1; // distancia a subir en eje Y
-      const startTime = performance.now();
-
-      function animateEffect() {
-        const elapsed = performance.now() - startTime;
-        const progress = elapsed / duration;
-        
-        // Mover hacia arriba en el eje Y global
-        noteRect.position.y = startPos.y + progress * totalUpDistance;
-        // Actualizar la orientación para que siga mirando a la cámara
-        noteRect.lookAt(camera.position);
-        // Desvanecer el rectángulo
-        noteRect.material.opacity = 1 - progress;
-        
-        if (progress < 1) {
-          requestAnimationFrame(animateEffect);
+    // Función para actualizar todos los efectos activos en cada frame
+    function updateNoteEffects() {
+      const currentTime = performance.now();
+      for (let i = activeNoteEffects.length - 1; i >= 0; i--) {
+        const effect = activeNoteEffects[i];
+        const elapsed = currentTime - effect.startTime;
+        const progress = elapsed / effect.duration;
+        if (progress >= 1) {
+          scene.remove(effect.noteRect);
+          activeNoteEffects.splice(i, 1);
         } else {
-          // Eliminar el rectángulo de la escena al finalizar
-          scene.remove(noteRect);
+          effect.noteRect.position.y = effect.startPos.y + progress * effect.totalUpDistance;
+          effect.noteRect.material.opacity = 1 - progress;
+          effect.noteRect.lookAt(camera.position);
         }
       }
-      animateEffect();
     }
 
     function onPanelSelect(panel) {
@@ -805,6 +808,7 @@
     function render() {
       checkHandCollisions();
       checkControllerCollisions();
+      updateNoteEffects();  // Actualizamos los efectos cada frame
       renderer.render(scene, camera);
     }
     function animate() {
