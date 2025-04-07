@@ -573,9 +573,9 @@
     // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
-      // Panel: mitad de largo respecto a la versión anterior (ancho 0.1, altura 0.05)
+      // Panel: ancho 0.1 y altura 0.05 (la mitad de largo respecto a versiones previas)
       const panelWidth = 0.1, panelHeight = 0.05;
-      // Fondo del panel: color morado, semitransparente, doble cara
+      // Fondo: morado, semitransparente, doble cara
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x800080, 
@@ -587,7 +587,7 @@
       bgMesh.renderOrder = 0;
       panelGroup.add(bgMesh);
       
-      // Texto en un canvas con las abreviaturas de matices
+      // Texto: dibujamos las abreviaturas (ff, f, mf, mp, p, pp) en un canvas
       const canvas = document.createElement('canvas');
       canvas.width = 256;
       canvas.height = 64;
@@ -602,27 +602,29 @@
       const textMaterial = new THREE.MeshBasicMaterial({ 
         map: textTexture, 
         transparent: true,
-        side: THREE.DoubleSide 
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1
       });
       const textGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-      // Desplazar ligeramente el texto para que se vea por encima del fondo
-      textMesh.position.z = 0.001;
+      // Incrementamos el offset del texto para que se ubique claramente sobre el fondo.
+      textMesh.position.z = 0.01;
       textMesh.renderOrder = 2;
       panelGroup.add(textMesh);
       
-      // Collider invisible: geometría 20% mayor para mejorar la detección
+      // Collider invisible para detección (20% mayor)
       const colliderGeometry = new THREE.PlaneGeometry(panelWidth * 1.2, panelHeight * 1.2);
       const colliderMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x000000, 
         opacity: 0, 
         transparent: true 
       });
-      // Evitar que el collider oculte (no escriba en el buffer de color)
       colliderMaterial.colorWrite = false;
       const colliderMesh = new THREE.Mesh(colliderGeometry, colliderMaterial);
-      // Offset pequeño en z para que quede encima del fondo pero detrás del texto
-      colliderMesh.position.z = 0.002;
+      // Lo colocamos un poco más adelante para evitar conflictos
+      colliderMesh.position.z = 0.02;
       colliderMesh.renderOrder = 1;
       panelGroup.add(colliderMesh);
       
@@ -630,8 +632,8 @@
       return panelGroup;
     }
 
-    // Crear los paneles y ubicarlos en un arco frente al usuario,
-    // usando las abreviaturas: ff, f, mf, mp, p, pp.
+    // Crear los paneles y ubicarlos en un arco frente al usuario.
+    // Se usan las abreviaturas: ff, f, mf, mp, p, pp.
     const panelTexts = ["ff", "f", "mf", "mp", "p", "pp"];
     const panels = [];
     const numPanels = panelTexts.length;
@@ -639,17 +641,16 @@
     const arcSpan = Math.PI / 3;     // Arco de 60° (en radianes)
     const startAngle = -arcSpan / 2;
     const angleIncrement = arcSpan / (numPanels - 1);
-    // Definir una altura baja para los paneles
-    const yPos = -0.5;
+    const yPos = -0.5;             // Altura baja
     panelTexts.forEach((text, index) => {
       const angle = startAngle + index * angleIncrement;
-      // Coordenadas polares (angle = 0 es frente al usuario)
+      // Coordenadas polares: angle = 0 apunta directamente al frente (–z)
       const x = radius * Math.sin(angle);
       const z = -radius * Math.cos(angle);
       const panel = createTextPanel(text);
-      // Ubicar el panel
       panel.position.set(x, yPos, z);
-      // "Tumbamos" el panel: rotarlo 90° sobre el eje X para que quede paralelo al suelo
+      // "Tumbamos" el panel: rotación -90° en X para que quede paralelo al suelo.
+      // Esto hace que la cara frontal (con el texto) quede orientada hacia arriba.
       panel.rotation.x = -Math.PI / 2;
       scene.add(panel);
       panels.push(panel);
