@@ -574,7 +574,7 @@
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
       // Panel: ancho 0.1 y altura 0.05 (la mitad de largo respecto a versiones previas)
-      const panelWidth = 0.1, panelHeight = 0.05;
+      const panelWidth = 0.15, panelHeight = 0.05;
       // Fondo: morado, semitransparente, doble cara
       const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
       const bgMaterial = new THREE.MeshBasicMaterial({ 
@@ -641,7 +641,7 @@
     const panels = [];
     const numPanels = panelTexts.length;
     const radius = 0.8;            // Más cerca
-    const arcSpan = Math.PI / 3;     // Arco de 60° (en radianes)
+    const arcSpan = Math.PI / 2;     // Arco de 60° (en radianes)
     const startAngle = -arcSpan / 2;
     const angleIncrement = arcSpan / (numPanels - 1);
     const yPos = -0.5;             // Altura baja
@@ -687,7 +687,7 @@
 
     // Ampliamos el umbral de colisión para detectar toques en cualquier parte del panel.
     function checkHandCollisions() {
-      const threshold = 0.12;
+      const threshold = 0.08;
       const now = performance.now();
       for (let handIndex = 0; handIndex < 2; handIndex++) {
         const hand = renderer.xr.getHand(handIndex);
