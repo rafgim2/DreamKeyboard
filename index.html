@@ -539,7 +539,7 @@
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.xr.enabled = true;
@@ -599,14 +599,18 @@
       return panelGroup;
     }
 
-    // Crear los paneles y ubicarlos horizontalmente (como teclas de piano)
+    // Crear los paneles y ubicarlos: se colocan lado a lado en horizontal y se rotan para quedar paralelos al suelo
     const panelTexts = ["Fortissimo", "Forte", "Mezzo-forte", "Mezzo-piano", "Piano", "Pianissimo"];
     const panels = [];
-    const spacing = 0.16; // Ajusta la separación entre paneles según necesites
-    const startX = -((panelTexts.length - 1) * spacing) / 2; // Centrar horizontalmente
+    const spacing = 0.6; // Espacio entre paneles
     panelTexts.forEach((text, index) => {
       const panel = createTextPanel(text);
-      panel.position.set(startX + index * spacing, 0, -0.8);
+      // Calcular un desplazamiento horizontal centrado
+      const offsetX = (index - (panelTexts.length - 1) / 2) * spacing;
+      // Ubicar los paneles a lo largo del eje X, con valores fijos en Y y Z
+      panel.position.set(offsetX, -0.8, -1);
+      // Rotar el panel para que quede horizontal (tumbado)
+      panel.rotation.x = -Math.PI / 2;
       scene.add(panel);
       panels.push(panel);
     });
