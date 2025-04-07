@@ -662,39 +662,46 @@
 
     // Función para crear el efecto visual del rectángulo que se eleva
     function createNoteEffect(panel) {
-      // Dimensiones del rectángulo (ajusta según necesites)
+      // Obtener la posición mundial del panel
+      const startPos = new THREE.Vector3();
+      panel.getWorldPosition(startPos);
+      // Ajustar la posición inicial: agregamos un pequeño offset en Y (global)
+      startPos.y += 0.03; // ajusta según necesites
+
+      // Crear el rectángulo de efecto
       const width = 0.1, height = 0.02;
       const geometry = new THREE.PlaneGeometry(width, height);
       const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
       const noteRect = new THREE.Mesh(geometry, material);
-      
-      // Posicionar el rectángulo en la parte superior del panel.
-      // Al agregarlo como hijo del panel, hereda su transformación.
-      noteRect.position.set(0, 0.05, 0); // Ajusta el offset según el tamaño del panel
-      panel.add(noteRect);
-      
-      // Configuración de la animación: duración y distancia a subir.
-      const duration = 1000; // milisegundos
-      const totalUpDistance = 0.1; // distancia total que se moverá hacia arriba
+      noteRect.position.copy(startPos);
+      // Orientar para que mire al usuario (cámara)
+      noteRect.lookAt(camera.position);
+      // Añadir a la escena
+      scene.add(noteRect);
+
+      // Parámetros de animación
+      const duration = 1000; // duración en ms
+      const totalUpDistance = 0.1; // distancia a subir en eje Y
       const startTime = performance.now();
-      
+
       function animateEffect() {
         const elapsed = performance.now() - startTime;
         const progress = elapsed / duration;
         
-        // Mover hacia arriba: incrementa la posición Y
-        noteRect.position.y = 0.05 + progress * totalUpDistance;
-        // Desvanecer: reducir la opacidad
+        // Mover hacia arriba en el eje Y global
+        noteRect.position.y = startPos.y + progress * totalUpDistance;
+        // Actualizar la orientación para que siga mirando a la cámara
+        noteRect.lookAt(camera.position);
+        // Desvanecer el rectángulo
         noteRect.material.opacity = 1 - progress;
         
         if (progress < 1) {
           requestAnimationFrame(animateEffect);
         } else {
-          // Al finalizar, eliminar el rectángulo del panel
-          panel.remove(noteRect);
+          // Eliminar el rectángulo de la escena al finalizar
+          scene.remove(noteRect);
         }
       }
-      
       animateEffect();
     }
 
