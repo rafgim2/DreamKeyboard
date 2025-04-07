@@ -665,30 +665,38 @@
 
     // Función para crear el efecto visual del rectángulo que se eleva
     function createNoteEffect(panel) {
-      // Obtener la posición mundial del panel y agregar un offset en Y
-      const startPos = new THREE.Vector3();
-      panel.getWorldPosition(startPos);
-      startPos.y += 0.03;
-      // Crear el rectángulo
-      const width = 0.1, height = 0.02;
-      const geometry = new THREE.PlaneGeometry(width, height);
-      const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
-      const noteRect = new THREE.Mesh(geometry, material);
-      noteRect.position.copy(startPos);
-      // Orientar para que mire al usuario
-      noteRect.lookAt(camera.position);
-      // Agregar a la escena
-      scene.add(noteRect);
-      
-      // Crear objeto efecto y agregarlo al array global
-      activeNoteEffects.push({
-        noteRect: noteRect,
-        startTime: performance.now(),
-        duration: 1000, // ms
-        startPos: startPos.clone(),
-        totalUpDistance: 6.1
-      });
-    }
+  // Obtener la posición mundial del panel y agregar un offset en Y
+  const startPos = new THREE.Vector3();
+  panel.getWorldPosition(startPos);
+  startPos.y += 0.03; // Offset inicial
+
+  // Crear el rectángulo
+  const width = 0.1, height = 0.02;
+  const geometry = new THREE.PlaneGeometry(width, height);
+  const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 });
+  const noteRect = new THREE.Mesh(geometry, material);
+  noteRect.position.copy(startPos);
+  // Orientar para que mire al usuario (la cámara)
+  noteRect.lookAt(camera.position);
+  // Agregar a la escena
+  scene.add(noteRect);
+
+  // Define la distancia que quieres que suba (puedes cambiar este valor)
+  const totalUpDistance = 4.3; // Por ejemplo, 0.3 unidades
+  // Define una velocidad constante en unidades/segundo (en el ejemplo, la velocidad es 0.1 unidades/segundo)
+  const constantSpeed = 0.1; 
+  // Calcula la duración en ms para mantener esa velocidad
+  const duration = (totalUpDistance / constantSpeed) * 1000; // duración en ms
+
+  // Agregar el efecto al array global para actualizarlo en cada frame
+  activeNoteEffects.push({
+    noteRect: noteRect,
+    startTime: performance.now(),
+    duration: duration,
+    startPos: startPos.clone(),
+    totalUpDistance: totalUpDistance
+  });
+}
 
     // Función para actualizar todos los efectos activos en cada frame
     function updateNoteEffects() {
