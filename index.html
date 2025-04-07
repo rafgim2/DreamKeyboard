@@ -236,12 +236,6 @@
       return noteNames[midi % 12] + octave;
     }
 
-    function computeEffectiveGain(relativeY) {
-      var minGain = 0.15;
-      var maxGain = 1.0;
-      return minGain + (maxGain - minGain) * (1 - relativeY);
-    }
-
     function playPianoNote(gain, midiNote) {
       if (pianoInstrument) {
         var noteName = midiNoteToNoteName(midiNote);
@@ -496,40 +490,8 @@
 
     window.addEventListener('load', loadDefaultMidi);
 
-    // ========================
-    // CÓDIGO AR CON UN ÚNICO PANEL EN FORMA DE ARCO
-    // ========================
-
-    // Parámetros para el panel de arco
-    const arcAngle = 2.0944;       // 120° en radianes
-    const majorRadius = 1.2;       // Radio de la curva (distancia del centro de curvatura)
-    const tubeRadius = 0.02;       // Grosor del panel
-
-    // Crear geometría de toro (arco) con el ángulo deseado
-    const arcGeometry = new THREE.TorusGeometry(majorRadius, tubeRadius, 16, 100, arcAngle);
-    // Rotar para que el arco sea vertical y se extienda horizontalmente (izquierda a derecha)
-    arcGeometry.rotateX(-Math.PI / 2);
-    // Material semitransparente
-    const arcMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.5, transparent: true, side: THREE.DoubleSide });
-    // Crear malla y posicionarla de modo que su centro de curvatura quede en (0,0,-majorRadius)
-    const arcPanel = new THREE.Mesh(arcGeometry, arcMaterial);
-    // Al trasladar la malla, el centro del toro se moverá. Aquí lo ubicamos para que la curva se encuentre frente al usuario.
-    arcPanel.position.set(0, 0, -majorRadius);
-
-    // Función para calcular la ganancia en función de la posición de colisión en el arco
-    function handleArcCollision(intersectionPoint) {
-      // Se calcula el vector desde el centro de curvatura (que definimos en (0,0,-majorRadius)) hasta el punto de colisión.
-      const center = new THREE.Vector3(0, 0, -majorRadius);
-      let v = intersectionPoint.clone().sub(center);
-      // Calculamos el ángulo horizontal; se espera que el ángulo varíe entre -arcAngle/2 (izquierda) y +arcAngle/2 (derecha)
-      let angle = Math.atan2(v.x, v.z);
-      // Normalizar: 0 para el extremo izquierdo (fortissimo) y 1 para el extremo derecho (pianissimo)
-      let normalized = (angle + arcAngle / 2) / arcAngle;
-      normalized = Math.max(0, Math.min(1, normalized));
-      const maxGain = 1.0, minGain = 0.15;
-      const effectiveGain = maxGain - normalized * (maxGain - minGain);
-      
-      // Reproducir nota usando la misma lógica que en handleARPanelSelect
+    // Función global que reproducirá la nota usando la ganancia calculada (en función de la posición en el arco)
+    window.handleArcPanelTouch = function(effectiveGain) {
       if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
         let groupThreshold = 0.001;
         let groupEnd = currentNoteIndex + 1;
@@ -556,22 +518,11 @@
           playNoteNonPedal(effectiveGain, defaultMidiNote);
         }
       }
+    };
+
+    function getRandomColor() {
+      return '#' + Math.floor(Math.random() * 16777215).toString(16);
     }
-
-    // Configurar el controlador XR para dispositivos con mandos:
-    // Se utiliza raycasting sobre el único panel de arco.
-    // Al seleccionar, se calcula el punto de intersección y se llama a handleArcCollision.
-    // (Nota: en este ejemplo se utiliza controller0)
-    // Asegúrate de que ARButton esté configurado para habilitar hit-test.
-    // Si hay colisión, se invoca la función de colisión con el punto de intersección.
-    // Así se determina la dinámica (de izquierda a derecha: de fortissimo a pianissimo).
-    // ---------------------------
-    // IMPORTANTE: Para colisiones con las manos, se implementa una comprobación basada en la posición.
-    // Se calcula la posición del dedo y se proyecta sobre la circunferencia definida por el arco.
-    // Si la diferencia entre la distancia del dedo y el radio es menor que una tolerancia, se invoca handleArcCollision.
-    
-    // Se agregan manos y controladores a la escena en el bloque AR (más abajo).
-
   </script>
 
   <!-- Código AR usando Three.js y ARButton -->
@@ -586,28 +537,22 @@
     renderer.xr.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // Agregar el botón AR (con soporte para hit-test y hand-tracking)
+    // Crear botón AR con soporte para hit-test y hand-tracking
     document.body.appendChild(ARButton.createButton(renderer, {
       requiredFeatures: ['hit-test'],
       optionalFeatures: ['hand-tracking']
     }));
 
-    // Agregar manos a la escena
+    // Agregar ambas manos y controladores a la escena
     const rightHand = renderer.xr.getHand(0);
     const leftHand  = renderer.xr.getHand(1);
     scene.add(rightHand);
     scene.add(leftHand);
-
-    // Agregar controladores para detección de colisiones con mandos
     const controller0 = renderer.xr.getController(0);
     const controller1 = renderer.xr.getController(1);
     scene.add(controller0);
     scene.add(controller1);
 
-    // Agregar el único panel de arco a la escena
-    scene.add(arcPanel);
-
-    // Al iniciar la sesión AR se oculta la interfaz tradicional
     renderer.xr.addEventListener('sessionstart', () => {
       document.getElementById('container').style.display = 'none';
     });
@@ -615,29 +560,69 @@
       document.getElementById('container').style.display = 'flex';
     });
 
-    // Configurar el controlador XR (mandos) para que al seleccionar se realice un raycast sobre el panel
-    controller0.addEventListener('select', () => {
-      const tempMatrix = new THREE.Matrix4();
-      tempMatrix.identity().extractRotation(controller0.matrixWorld);
-      const raycaster = new THREE.Raycaster();
-      raycaster.ray.origin.setFromMatrixPosition(controller0.matrixWorld);
-      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-      const intersects = raycaster.intersectObject(arcPanel, true);
-      if (intersects.length > 0) {
-        const intersection = intersects[0];
-        handleArcCollision(intersection.point);
-      }
-    });
-    // (Se puede agregar lógica similar para controller1 si se desea)
+    // Función para crear un panel en forma de arco (120°) semitransparente.
+    // Se define como un sector anular con radio interno y externo.
+    function createArcPanel() {
+      const arcPanelGroup = new THREE.Group();
+      const innerRadius = 0.8, outerRadius = 1.0;
+      const startAngle = -Math.PI/3; // -60° (izquierda)
+      const endAngle = Math.PI/3;    // 60° (derecha)
+      
+      // Crear la forma del arco en el plano XY
+      const shape = new THREE.Shape();
+      shape.moveTo(innerRadius * Math.cos(startAngle), innerRadius * Math.sin(startAngle));
+      shape.absarc(0, 0, innerRadius, startAngle, endAngle, false);
+      shape.lineTo(outerRadius * Math.cos(endAngle), outerRadius * Math.sin(endAngle));
+      shape.absarc(0, 0, outerRadius, endAngle, startAngle, true);
+      shape.lineTo(innerRadius * Math.cos(startAngle), innerRadius * Math.sin(startAngle));
+      
+      const geometry = new THREE.ShapeGeometry(shape);
+      // Material semitransparente
+      const material = new THREE.MeshBasicMaterial({ color: 0x8888ff, opacity: 0.5, transparent: true, side: THREE.DoubleSide });
+      const arcMesh = new THREE.Mesh(geometry, material);
+      // Rotar para que el arco quede horizontal (en el plano XZ)
+      arcMesh.rotation.x = -Math.PI/2;
+      arcPanelGroup.add(arcMesh);
+      // Guardar parámetros útiles para la detección de colisión
+      arcPanelGroup.userData = { innerRadius, outerRadius, startAngle, endAngle, lastActivated: 0 };
+      return arcPanelGroup;
+    }
 
-    // Función para comprobar colisiones con las manos.
-    // Para cada mano se obtiene la posición del dedo índice (o se toma el primer hijo disponible).
-    // Se calcula la diferencia entre la distancia real y el radio deseado (majorRadius).
-    // Si la diferencia es menor que una tolerancia, se proyecta el punto sobre la circunferencia y se invoca handleArcCollision.
-    function checkHandCollisions() {
-      const tolerance = 0.1;  // Tolerancia en la distancia
-      const now = performance.now();
-      const center = new THREE.Vector3(0, 0, -majorRadius);
+    // Crear el único panel en forma de arco y posicionarlo frente al usuario.
+    const arcPanel = createArcPanel();
+    // Posición: ajusta la altura y la distancia según necesites.
+    arcPanel.position.set(0, 0.5, -1);
+    scene.add(arcPanel);
+
+    // Función que procesa la colisión en un punto dado (en coordenadas mundo)
+    // Se transforma el punto al sistema local del panel y se comprueba si está dentro del sector.
+    function processCollisionAtPoint(worldPos) {
+      // Convertir al sistema local del panel
+      const localPos = arcPanel.worldToLocal(worldPos.clone());
+      // Invertir la rotación aplicada al arco (fue -PI/2) para obtener coordenadas originales en XY
+      localPos.applyAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI/2);
+      const x = localPos.x, y = localPos.y;
+      const r = Math.sqrt(x * x + y * y);
+      const theta = Math.atan2(y, x);  // Ángulo en radianes
+      const { innerRadius, outerRadius, startAngle, endAngle, lastActivated } = arcPanel.userData;
+      if (r >= innerRadius && r <= outerRadius && theta >= startAngle && theta <= endAngle) {
+        // Calcular el parámetro horizontal: 0 (izquierda) a 1 (derecha)
+        const normalized = (theta - startAngle) / (endAngle - startAngle);
+        const minGain = 0.15, maxGain = 1.0;
+        // Ganancia: cuanto más a la izquierda (normalized=0) más fuerte (maxGain),
+        // y a la derecha (normalized=1) más suave (minGain)
+        const effectiveGain = maxGain - normalized * (maxGain - minGain);
+        const now = performance.now();
+        if (!arcPanel.userData.lastActivated || now - arcPanel.userData.lastActivated > 250) {
+          arcPanel.userData.lastActivated = now;
+          window.handleArcPanelTouch(effectiveGain);
+        }
+      }
+    }
+
+    // Función que comprueba colisiones con manos y controladores usando la posición del dedo o mando.
+    function checkArcPanelCollisions() {
+      // Manos (hand tracking)
       for (let handIndex = 0; handIndex < 2; handIndex++) {
         const hand = renderer.xr.getHand(handIndex);
         if (hand) {
@@ -654,37 +639,37 @@
           } else {
             continue;
           }
-          // Calcular la diferencia entre la distancia del dedo y el radio del arco
-          const v = fingerPos.clone().sub(center);
-          const distDiff = Math.abs(v.length() - majorRadius);
-          if (distDiff < tolerance) {
-            // Proyectar el punto sobre la circunferencia (utilizando la dirección normalizada multiplicada por el radio)
-            const intersectionPoint = center.clone().add(v.normalize().multiplyScalar(majorRadius));
-            if (!hand.userData.lastActivated || now - hand.userData.lastActivated > 250) {
-              handleArcCollision(intersectionPoint);
-              hand.userData.lastActivated = now;
-            }
-          }
+          processCollisionAtPoint(fingerPos);
         }
       }
+      // Controladores (mandos)
+      const controllers = [];
+      if (controller0) controllers.push(controller0);
+      if (controller1) controllers.push(controller1);
+      controllers.forEach(ctrl => {
+        let ctrlPos = new THREE.Vector3();
+        ctrl.getWorldPosition(ctrlPos);
+        processCollisionAtPoint(ctrlPos);
+      });
     }
 
-    // Listener para toques en pantalla (para dispositivos táctiles)
+    // Listener para toques en pantalla: se utiliza raycasting sobre el arco.
     renderer.domElement.addEventListener('touchstart', (event) => {
       const touch = event.touches[0];
-      const x = (touch.clientX / window.innerWidth) * 2 - 1;
-      const y = - (touch.clientY / window.innerHeight) * 2 + 1;
+      const mouse = new THREE.Vector2();
+      mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = - (touch.clientY / window.innerHeight) * 2 + 1;
       const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+      raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObject(arcPanel, true);
       if (intersects.length > 0) {
-        const intersection = intersects[0];
-        handleArcCollision(intersection.point);
+        const point = intersects[0].point;
+        processCollisionAtPoint(point);
       }
     });
 
     function render() {
-      checkHandCollisions();
+      checkArcPanelCollisions();
       renderer.render(scene, camera);
     }
     function animate() {
