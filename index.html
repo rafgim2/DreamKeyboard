@@ -1,3 +1,5 @@
+Tú dijiste:
+quiero que en este codigo, en la rama AR, salga debajo de los paneles un arco curvo semitransparente azul claro con un gradiente animado que parezca que el color va de lado a lado continuamente
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -626,62 +628,19 @@
     const arcSpan = Math.PI / 2;
     const startAngle = -arcSpan / 2;
     const angleIncrement = arcSpan / (numPanels - 1);
-    const yPos = -0.4;
+    const yPos = -0.3;
     panelTexts.forEach((text, index) => {
       const angle = startAngle + index * angleIncrement;
       const x = radius * Math.sin(angle);
       const z = -radius * Math.cos(angle);
       const panel = createTextPanel(text);
       panel.position.set(x, yPos, z);
-      panel.rotation.x = -Math.PI / 2;
+      panel.rotation.x = -THREE.MathUtils.degToRad(75);
+
       panel.rotation.z = -Math.atan2(panel.position.x, -panel.position.z);
       scene.add(panel);
       panels.push(panel);
     });
-
-    // --- NUEVO: Agregar arco curvo semitransparente con gradiente animado justo debajo de los paneles ---
-    // Posición Y del arco justo debajo de los paneles (panel yPos es -0.4)
-    const arcY = -0.45;
-    const innerRadius = 0.85;
-    const outerRadius = 0.95;
-    const thetaStart = -Math.PI / 4;   // Igual que startAngle de los paneles
-    const thetaLength = Math.PI / 2;     // Igual que arcSpan (90°)
-    const segments = 32;
-    const arcGeometry = new THREE.RingGeometry(innerRadius, outerRadius, segments, 1, thetaStart, thetaLength);
-
-    // Shader que anima un gradiente de izquierda a derecha de azul a morado
-    const arcMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        time: { value: 0.0 }
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        void main(){
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform float time;
-        varying vec2 vUv;
-        void main(){
-          // Animar la coordenada horizontal para lograr efecto de desplazamiento
-          float shift = mod(vUv.x + time * 0.2, 1.0);
-          // De izquierda a derecha: azul a morado
-          vec3 colorA = vec3(0.0, 0.0, 1.0);   // Azul
-          vec3 colorB = vec3(0.5, 0.0, 0.5);   // Morado
-          vec3 color = mix(colorA, colorB, smoothstep(0.0, 1.0, shift));
-          gl_FragColor = vec4(color, 0.5);
-        }
-      `,
-      transparent: true
-    });
-
-    const arcMesh = new THREE.Mesh(arcGeometry, arcMaterial);
-    arcMesh.rotation.x = -Math.PI / 2;
-    arcMesh.position.y = arcY;
-    scene.add(arcMesh);
-    // -----------------------------------------------------------------------------------------
 
     // Función para crear el efecto visual del rectángulo que se eleva
     function createNoteEffect(panel) {
@@ -732,6 +691,7 @@
 
     // Se modifica onPanelSelect para almacenar el último panel activado
     function onPanelSelect(panel) {
+      // Almacenar el último panel activado para la nueva funcionalidad
       lastActivatedARPanel = panel;
       const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
       panel.userData.bgMaterial.color.copy(randomColor);
@@ -758,6 +718,7 @@
     });
     scene.add(controller0);
 
+    // Los eventos 'squeezestart' se mantienen, por si acaso.
     controller0.addEventListener('squeezestart', () => {
       if (lastActivatedARPanel) {
         onPanelSelect(lastActivatedARPanel);
@@ -769,6 +730,7 @@
       }
     });
 
+    // Colisiones con las manos
     function checkHandCollisions() {
       const threshold = 0.08;
       const now = performance.now();
@@ -824,18 +786,22 @@
       });
     }
 
+    // NUEVA FUNCIONALIDAD: Verificar individualmente el estado de cada botón de cada mando
     function checkAllControllerButtons() {
       [controller0, controller1].forEach(ctrl => {
         if (ctrl && ctrl.gamepad && ctrl.gamepad.buttons) {
+          // Inicializamos un array previo si aún no existe
           if (!ctrl.userData.prevButtons) {
             ctrl.userData.prevButtons = new Array(ctrl.gamepad.buttons.length).fill(false);
           }
           ctrl.gamepad.buttons.forEach((button, index) => {
+            // Si el botón acaba de pasar de no presionado a presionado
             if (button.pressed && !ctrl.userData.prevButtons[index]) {
               if (lastActivatedARPanel) {
                 onPanelSelect(lastActivatedARPanel);
               }
             }
+            // Actualizar el estado previo para el siguiente frame
             ctrl.userData.prevButtons[index] = button.pressed;
           });
         }
@@ -858,10 +824,9 @@
     function render() {
       checkHandCollisions();
       checkControllerCollisions();
+      // Verificar el estado de cada botón en cada frame
       checkAllControllerButtons();
       updateNoteEffects();
-      // Actualizar el uniforme para animar el gradiente del arco
-      arcMaterial.uniforms.time.value = performance.now() * 0.001;
       renderer.render(scene, camera);
     }
     function animate() {
