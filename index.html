@@ -555,13 +555,7 @@
       requiredFeatures: ['hit-test'],
       optionalFeatures: ['hand-tracking']
     }));
-    // Modificamos el estilo para cambiar su color y colocarlo más abajo.
-    arButton.style.backgroundColor = "#9b111e";  // Cambia el color (ejemplo: rosa)
-    arButton.style.position = "absolute";
-    arButton.style.bottom = "0px";              // Más abajo (a 20px del fondo)
-    arButton.style.top = "";                     // Asegurarse de no tener valor en top
-    document.body.appendChild(arButton);
-
+    
     // Agregar ambas manos a la escena
     const rightHand = renderer.xr.getHand(0);
     const leftHand  = renderer.xr.getHand(1);
