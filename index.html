@@ -715,7 +715,7 @@
     });
     scene.add(controller0);
 
-    // Los eventos 'squeezestart' también mantienen la funcionalidad existente
+    // Los eventos 'squeezestart' se mantienen, por si acaso.
     controller0.addEventListener('squeezestart', () => {
       if (lastActivatedARPanel) {
         onPanelSelect(lastActivatedARPanel);
@@ -783,19 +783,24 @@
       });
     }
 
-    // NUEVA FUNCIONALIDAD: Comprobar todos los botones de los mandos
+    // NUEVA FUNCIONALIDAD: Verificar individualmente el estado de cada botón de cada mando
     function checkAllControllerButtons() {
       [controller0, controller1].forEach(ctrl => {
         if (ctrl && ctrl.gamepad && ctrl.gamepad.buttons) {
-          let anyPressed = ctrl.gamepad.buttons.some(button => button.pressed);
-          if (anyPressed && !ctrl.userData.buttonPressed) {
-            ctrl.userData.buttonPressed = true;
-            if (lastActivatedARPanel) {
-              onPanelSelect(lastActivatedARPanel);
-            }
-          } else if (!anyPressed) {
-            ctrl.userData.buttonPressed = false;
+          // Inicializamos un array previo si aún no existe
+          if (!ctrl.userData.prevButtons) {
+            ctrl.userData.prevButtons = new Array(ctrl.gamepad.buttons.length).fill(false);
           }
+          ctrl.gamepad.buttons.forEach((button, index) => {
+            // Si el botón acaba de pasar de no presionado a presionado
+            if (button.pressed && !ctrl.userData.prevButtons[index]) {
+              if (lastActivatedARPanel) {
+                onPanelSelect(lastActivatedARPanel);
+              }
+            }
+            // Actualizar el estado previo para el siguiente frame
+            ctrl.userData.prevButtons[index] = button.pressed;
+          });
         }
       });
     }
@@ -816,7 +821,7 @@
     function render() {
       checkHandCollisions();
       checkControllerCollisions();
-      // Se verifica mediante polling si se pulsan cualquier botón de los mandos
+      // Verificar el estado de cada botón en cada frame
       checkAllControllerButtons();
       updateNoteEffects();
       renderer.render(scene, camera);
