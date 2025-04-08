@@ -686,7 +686,7 @@
       }
     }
 
-    // Modificación: Se modifica onPanelSelect para almacenar el último panel activado
+    // Se modifica onPanelSelect para almacenar el último panel activado
     function onPanelSelect(panel) {
       // Almacenar el último panel activado para la nueva funcionalidad
       lastActivatedARPanel = panel;
@@ -715,8 +715,7 @@
     });
     scene.add(controller0);
 
-    // Agregar funcionalidad extra:
-    // Permitir activar el último panel con cualquier botón (usando el evento "squeezestart")
+    // Los eventos 'squeezestart' también mantienen la funcionalidad existente
     controller0.addEventListener('squeezestart', () => {
       if (lastActivatedARPanel) {
         onPanelSelect(lastActivatedARPanel);
@@ -784,6 +783,23 @@
       });
     }
 
+    // NUEVA FUNCIONALIDAD: Comprobar todos los botones de los mandos
+    function checkAllControllerButtons() {
+      [controller0, controller1].forEach(ctrl => {
+        if (ctrl && ctrl.gamepad && ctrl.gamepad.buttons) {
+          let anyPressed = ctrl.gamepad.buttons.some(button => button.pressed);
+          if (anyPressed && !ctrl.userData.buttonPressed) {
+            ctrl.userData.buttonPressed = true;
+            if (lastActivatedARPanel) {
+              onPanelSelect(lastActivatedARPanel);
+            }
+          } else if (!anyPressed) {
+            ctrl.userData.buttonPressed = false;
+          }
+        }
+      });
+    }
+
     renderer.domElement.addEventListener('touchstart', (event) => {
       const touch = event.touches[0];
       const x = (touch.clientX / window.innerWidth) * 2 - 1;
@@ -800,6 +816,8 @@
     function render() {
       checkHandCollisions();
       checkControllerCollisions();
+      // Se verifica mediante polling si se pulsan cualquier botón de los mandos
+      checkAllControllerButtons();
       updateNoteEffects();
       renderer.render(scene, camera);
     }
