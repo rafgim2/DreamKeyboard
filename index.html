@@ -646,7 +646,7 @@
     function createNoteEffect(panel) {
       const startPos = new THREE.Vector3();
       panel.getWorldPosition(startPos);
-      startPos.y += 0.03;
+      startPos.y += 0.04;
       const panelColor = panel.userData.bgMaterial.color.getHex();
       const width = 0.02, height = 0.02;
       const geometry = new THREE.PlaneGeometry(width, height);
