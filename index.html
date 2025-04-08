@@ -523,8 +523,8 @@
 
     // Modificar estilos para posicionarlo más abajo y darle fondo morado oscuro
     arButton.style.position = 'absolute';
-    arButton.style.bottom = '-10px';           // Ajusta este valor según necesites
-    arButton.style.backgroundColor = '#4B0082';  // Fondo morado oscuro
+    arButton.style.bottom = '-10px';
+    arButton.style.backgroundColor = '#4B0082';
     arButton.style.border = 'none';
     arButton.style.color = 'white';
     arButton.style.fontSize = '16px';
@@ -548,6 +548,10 @@
       document.getElementById('container').style.display = 'flex';
     });
 
+    // VARIABLES PARA LA SELECCIÓN DE PANEL EN AR
+    // lastARPanel almacenará el último panel activado (por colisión o toque)
+    let lastARPanel = null;
+
     // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
     function createTextPanel(text) {
       const panelGroup = new THREE.Group();
@@ -565,7 +569,7 @@
       bgMesh.renderOrder = 0;
       panelGroup.add(bgMesh);
       
-      // Texto: se dibujan las abreviaturas (ff, f, mf, mp, p, pp) en un canvas
+      // Texto: dibujamos las abreviaturas (ff, f, mf, mp, p, pp) en un canvas
       const canvas = document.createElement('canvas');
       canvas.width = 256;
       canvas.height = 64;
@@ -618,7 +622,7 @@
     const panelTexts = ["ff", "f", "mf", "mp", "p", "pp"];
     const panels = [];
     const numPanels = panelTexts.length;
-    const radius = 0.8;            // Distancia
+    const radius = 0.8;            // Más cerca
     const arcSpan = Math.PI / 2;     // Arco de 90° en total
     const startAngle = -arcSpan / 2;
     const angleIncrement = arcSpan / (numPanels - 1);
@@ -630,15 +634,13 @@
       const z = -radius * Math.cos(angle);
       const panel = createTextPanel(text);
       panel.position.set(x, yPos, z);
-      // Rotación para que quede paralelo al suelo y la cara frontal mire al usuario.
+      // "Tumbamos" el panel: rotación -90° en X para que quede paralelo al suelo.
       panel.rotation.x = -Math.PI / 2;
+      // Rotamos en Z para que la cara frontal del panel mire al usuario.
       panel.rotation.z = -Math.atan2(panel.position.x, -panel.position.z);
       scene.add(panel);
       panels.push(panel);
     });
-
-    // Variable global para almacenar el último panel activado por botón
-    let lastARPanel = null;
 
     // Función para crear el efecto visual del rectángulo que se eleva
     function createNoteEffect(panel) {
@@ -662,9 +664,10 @@
       noteRect.position.copy(startPos);
       // Orientar para que mire al usuario (la cámara)
       noteRect.lookAt(camera.position);
+      // Agregar a la escena
       scene.add(noteRect);
 
-      // Define la distancia que sube y la velocidad
+      // Define la distancia que quieres que suba y la velocidad
       const totalUpDistance = 2.3;
       const constantSpeed = 0.1; 
       const duration = (totalUpDistance / constantSpeed) * 1000; // duración en ms
@@ -679,7 +682,7 @@
       });
     }
 
-    // Función para actualizar los efectos activos en cada frame
+    // Función para actualizar todos los efectos activos en cada frame
     function updateNoteEffects() {
       const currentTime = performance.now();
       for (let i = activeNoteEffects.length - 1; i >= 0; i--) {
@@ -697,54 +700,61 @@
       }
     }
 
-    // Función para manejar la selección de panel en AR (calcula el gain según el índice)
-    window.handleARPanelSelect = function(panelIndex) {
-      const minGain = 0.15, maxGain = 1.0;
-      const effectiveGain = maxGain - (panelIndex / 5) * (maxGain - minGain);
-      if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
-        let groupThreshold = 0.001;
-        let groupEnd = currentNoteIndex + 1;
-        while (groupEnd < notesToPlay.length &&
-               Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
-          groupEnd++;
-        }
-        for (let i = currentNoteIndex; i < groupEnd; i++) {
-          let note = notesToPlay[i];
-          if (pedalOn) {
-            playPianoNote(effectiveGain, note.noteNumber);
-          } else {
-            playNoteNonPedal(effectiveGain, note.noteNumber);
-          }
-        }
-        currentNoteIndex = groupEnd;
-        if (currentNoteIndex >= notesToPlay.length) {
-          currentNoteIndex = 0;
-        }
-      } else {
-        if (pedalOn) {
-          playPianoNote(effectiveGain, defaultMidiNote);
-        } else {
-          playNoteNonPedal(effectiveGain, defaultMidiNote);
-        }
-      }
-    };
-
-    // Función que se invoca al seleccionar un panel en AR
+    // Función para manejar la selección de panel en AR.
+    // Se actualiza la variable global lastARPanel y se aplica la lógica de reproducción.
     function onPanelSelect(panel) {
-      // Actualizamos el último panel activado para que el botón lo active luego
+      // Actualizamos el último panel activado
       lastARPanel = panel;
       const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
       panel.userData.bgMaterial.color.copy(randomColor);
       setTimeout(() => {
         panel.userData.bgMaterial.color.set(0x800080);
       }, 200);
-      // Agregar el efecto visual del rectángulo que se eleva
+      // Agregar el efecto visual del rectángulo
       createNoteEffect(panel);
       const panelIndex = panels.indexOf(panel);
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Añadimos listeners para detectar colisiones con las manos y controladores (ya existentes)
+    // Función para revisar continuamente si se presionó algún botón en los controladores
+    function checkGamepadButtons() {
+      const controllers = [controller0, controller1];
+      controllers.forEach(ctrl => {
+        if (ctrl.gamepad) {
+          // Si se detecta que cualquier botón está presionado
+          const anyButtonPressed = ctrl.gamepad.buttons.some(button => button.pressed);
+          if (anyButtonPressed) {
+            // Evitamos disparar múltiples veces al mantener presionado
+            if (!ctrl.userData.lastButtonPressed) {
+              ctrl.userData.lastButtonPressed = true;
+              // Si ya se activó un panel previamente, se usa ese;
+              // de lo contrario, se activa el panel "mf" (índice 2)
+              const panelToActivate = lastARPanel || panels[2];
+              onPanelSelect(panelToActivate);
+            }
+          } else {
+            ctrl.userData.lastButtonPressed = false;
+          }
+        }
+      });
+    }
+
+    // Listener para eventos de "select" de controller0 (por si se usa el pulgar / gatillo)
+    controller0.addEventListener('select', () => {
+      const tempMatrix = new THREE.Matrix4();
+      tempMatrix.identity().extractRotation(controller0.matrixWorld);
+      const raycaster = new THREE.Raycaster();
+      raycaster.ray.origin.setFromMatrixPosition(controller0.matrixWorld);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+      const intersects = raycaster.intersectObjects(panels, true);
+      if (intersects.length > 0) {
+        const selectedPanel = intersects[0].object.parent;
+        onPanelSelect(selectedPanel);
+      }
+    });
+    scene.add(controller0);
+
+    // Ampliamos el umbral de colisión para detectar toques en cualquier parte del panel.
     function checkHandCollisions() {
       const threshold = 0.08;
       const now = performance.now();
@@ -778,7 +788,6 @@
       }
     }
 
-    // Seguimos manteniendo el detector de colisiones para los controladores (basado en posición)
     function checkControllerCollisions() {
       const threshold = 0.12;
       const now = performance.now();
@@ -815,29 +824,10 @@
       }
     });
 
-    // *** MODIFICACIONES PARA ACTIVAR PANEL CON BOTONES DEL MANDO ***
-    // Al presionar cualquier botón en un mando se activa:
-    // - El último panel activado (si ya se activó alguno)
-    // - Si aún no se ha activado ninguno, se activa el panel "mf" (índice 2)
-    controller0.addEventListener('select', () => {
-      if (lastARPanel) {
-        onPanelSelect(lastARPanel);
-      } else {
-        onPanelSelect(panels[2]); // "mf" por defecto
-      }
-    });
-    controller1.addEventListener('select', () => {
-      if (lastARPanel) {
-        onPanelSelect(lastARPanel);
-      } else {
-        onPanelSelect(panels[2]); // "mf" por defecto
-      }
-    });
-    // ****************************************************************
-
     function render() {
       checkHandCollisions();
       checkControllerCollisions();
+      checkGamepadButtons(); // Verificamos si se presionó algún botón del mando en cada frame
       updateNoteEffects();  // Actualizamos los efectos cada frame
       renderer.render(scene, camera);
     }
