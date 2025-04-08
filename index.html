@@ -626,7 +626,7 @@
     const arcSpan = Math.PI / 2;
     const startAngle = -arcSpan / 2;
     const angleIncrement = arcSpan / (numPanels - 1);
-    const yPos = -0.3;
+    const yPos = -0.4;
     panelTexts.forEach((text, index) => {
       const angle = startAngle + index * angleIncrement;
       const x = radius * Math.sin(angle);
@@ -639,8 +639,9 @@
       panels.push(panel);
     });
 
-    // --- NUEVO: Agregar arco curvo semitransparente azul con gradiente animado debajo de los paneles ---
-    const arcY = -0.6; // Posición Y del arco (por debajo de los paneles que están en y = -0.4)
+    // --- NUEVO: Agregar arco curvo semitransparente con gradiente animado justo debajo de los paneles ---
+    // Posición Y del arco justo debajo de los paneles (panel yPos es -0.4)
+    const arcY = -0.45;
     const innerRadius = 0.85;
     const outerRadius = 0.95;
     const thetaStart = -Math.PI / 4;   // Igual que startAngle de los paneles
@@ -648,6 +649,7 @@
     const segments = 32;
     const arcGeometry = new THREE.RingGeometry(innerRadius, outerRadius, segments, 1, thetaStart, thetaLength);
 
+    // Shader que anima un gradiente de izquierda a derecha de azul a morado
     const arcMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0.0 }
@@ -663,10 +665,11 @@
         uniform float time;
         varying vec2 vUv;
         void main(){
-          // Se anima la componente horizontal del UV para desplazar el gradiente
+          // Animar la coordenada horizontal para lograr efecto de desplazamiento
           float shift = mod(vUv.x + time * 0.2, 1.0);
-          vec3 colorA = vec3(0.8, 0.9, 1.0);
-          vec3 colorB = vec3(0.6, 0.8, 1.0);
+          // De izquierda a derecha: azul a morado
+          vec3 colorA = vec3(0.0, 0.0, 1.0);   // Azul
+          vec3 colorB = vec3(0.5, 0.0, 0.5);   // Morado
           vec3 color = mix(colorA, colorB, smoothstep(0.0, 1.0, shift));
           gl_FragColor = vec4(color, 0.5);
         }
@@ -857,7 +860,7 @@
       checkControllerCollisions();
       checkAllControllerButtons();
       updateNoteEffects();
-      // Actualizar el uniform para animar el gradiente del arco
+      // Actualizar el uniforme para animar el gradiente del arco
       arcMaterial.uniforms.time.value = performance.now() * 0.001;
       renderer.render(scene, camera);
     }
