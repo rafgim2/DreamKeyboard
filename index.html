@@ -523,7 +523,6 @@
     });
     document.body.appendChild(arButton);
     // Estilos para el ARButton
-   
     arButton.style.bottom = '-10px';
     arButton.style.backgroundColor = '#4B0082';
     arButton.style.border = 'none';
@@ -552,6 +551,10 @@
     const controller1 = renderer.xr.getController(1);
     scene.add(controller0);
     scene.add(controller1);
+
+    // NUEVA FUNCIONALIDAD:
+    // Variable global para almacenar el último panel activado en AR
+    let lastActivatedARPanel = null;
 
     // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
     function createTextPanel(text) {
@@ -683,7 +686,10 @@
       }
     }
 
+    // Modificación: Se modifica onPanelSelect para almacenar el último panel activado
     function onPanelSelect(panel) {
+      // Almacenar el último panel activado para la nueva funcionalidad
+      lastActivatedARPanel = panel;
       const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
       panel.userData.bgMaterial.color.copy(randomColor);
       setTimeout(() => {
@@ -708,6 +714,19 @@
       }
     });
     scene.add(controller0);
+
+    // Agregar funcionalidad extra:
+    // Permitir activar el último panel con cualquier botón (usando el evento "squeezestart")
+    controller0.addEventListener('squeezestart', () => {
+      if (lastActivatedARPanel) {
+        onPanelSelect(lastActivatedARPanel);
+      }
+    });
+    controller1.addEventListener('squeezestart', () => {
+      if (lastActivatedARPanel) {
+        onPanelSelect(lastActivatedARPanel);
+      }
+    });
 
     // Colisiones con las manos
     function checkHandCollisions() {
