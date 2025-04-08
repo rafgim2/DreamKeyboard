@@ -633,9 +633,9 @@
       const z = -radius * Math.cos(angle);
       const panel = createTextPanel(text);
       panel.position.set(x, yPos, z);
-    panel.rotation.z = -Math.atan2(panel.position.x, -panel.position.z);
-      panel.rotation.x = -Math.PI / 2 + 0.3;
-     
+
+      panel.rotation.x = -Math.PI / 2;
+      panel.rotation.z = -Math.atan2(panel.position.x, -panel.position.z);
       scene.add(panel);
       panels.push(panel);
     });
