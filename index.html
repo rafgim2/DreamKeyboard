@@ -24,6 +24,7 @@
       background-color: #FFFFFF;
       margin: 0;
       overflow: hidden;
+ 
       display: flex;
       justify-content: center;
       align-items: center;
@@ -523,11 +524,14 @@
 
     // Modificar estilos para posicionarlo más abajo y darle fondo morado oscuro
     arButton.style.position = 'absolute';
-    arButton.style.bottom = '-10px';
-    arButton.style.backgroundColor = '#4B0082';
+    arButton.style.bottom = '-10px';           // Lo aleja 10px del fondo (ajusta según necesidad)
+    arButton.style.backgroundColor = '#4B0082';  // Fondo morado oscuro
     arButton.style.border = 'none';
-    arButton.style.color = 'white';
+    arButton.style.color = 'white';            // Texto blanco
     arButton.style.fontSize = '16px';
+
+    // Declaramos variable global para almacenar el último panel activado en AR.
+    let lastActivatedPanelAR = null;
 
     // Agregar ambas manos a la escena
     const rightHand = renderer.xr.getHand(0);
@@ -547,10 +551,6 @@
     renderer.xr.addEventListener('sessionend', () => {
       document.getElementById('container').style.display = 'flex';
     });
-
-    // VARIABLES PARA LA SELECCIÓN DE PANEL EN AR
-    // lastARPanel almacenará el último panel activado (por colisión o toque)
-    let lastARPanel = null;
 
     // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
     function createTextPanel(text) {
@@ -700,11 +700,11 @@
       }
     }
 
-    // Función para manejar la selección de panel en AR.
-    // Se actualiza la variable global lastARPanel y se aplica la lógica de reproducción.
+    // Función que se llama cada vez que se activa un panel en AR.
+    // Se actualiza el último panel activado y se dispara la lógica para reproducir el sonido.
     function onPanelSelect(panel) {
-      // Actualizamos el último panel activado
-      lastARPanel = panel;
+      // Actualizar último panel activado
+      lastActivatedPanelAR = panel;
       const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
       panel.userData.bgMaterial.color.copy(randomColor);
       setTimeout(() => {
@@ -716,43 +716,20 @@
       window.handleARPanelSelect(panelIndex);
     }
 
-    // Función para revisar continuamente si se presionó algún botón en los controladores
-    function checkGamepadButtons() {
-      const controllers = [controller0, controller1];
-      controllers.forEach(ctrl => {
-        if (ctrl.gamepad) {
-          // Si se detecta que cualquier botón está presionado
-          const anyButtonPressed = ctrl.gamepad.buttons.some(button => button.pressed);
-          if (anyButtonPressed) {
-            // Evitamos disparar múltiples veces al mantener presionado
-            if (!ctrl.userData.lastButtonPressed) {
-              ctrl.userData.lastButtonPressed = true;
-              // Si ya se activó un panel previamente, se usa ese;
-              // de lo contrario, se activa el panel "mf" (índice 2)
-              const panelToActivate = lastARPanel || panels[2];
-              onPanelSelect(panelToActivate);
-            }
-          } else {
-            ctrl.userData.lastButtonPressed = false;
-          }
-        }
-      });
+    // Nueva función para manejar la activación por botón del mando en AR.
+    // Si ya se activó algún panel, se reactiva el último; de lo contrario, se activa por defecto el panel "mf" (índice 2).
+    function handleControllerButtonPress() {
+      if (lastActivatedPanelAR) {
+        onPanelSelect(lastActivatedPanelAR);
+      } else {
+        // Panel "mf" (tercer panel, índice 2)
+        onPanelSelect(panels[2]);
+      }
     }
 
-    // Listener para eventos de "select" de controller0 (por si se usa el pulgar / gatillo)
-    controller0.addEventListener('select', () => {
-      const tempMatrix = new THREE.Matrix4();
-      tempMatrix.identity().extractRotation(controller0.matrixWorld);
-      const raycaster = new THREE.Raycaster();
-      raycaster.ray.origin.setFromMatrixPosition(controller0.matrixWorld);
-      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-      const intersects = raycaster.intersectObjects(panels, true);
-      if (intersects.length > 0) {
-        const selectedPanel = intersects[0].object.parent;
-        onPanelSelect(selectedPanel);
-      }
-    });
-    scene.add(controller0);
+    // Instalamos el listener para que al apretar cualquier botón en cualquiera de los dos controladores se active la función anterior.
+    controller0.addEventListener('select', handleControllerButtonPress);
+    controller1.addEventListener('select', handleControllerButtonPress);
 
     // Ampliamos el umbral de colisión para detectar toques en cualquier parte del panel.
     function checkHandCollisions() {
@@ -827,7 +804,6 @@
     function render() {
       checkHandCollisions();
       checkControllerCollisions();
-      checkGamepadButtons(); // Verificamos si se presionó algún botón del mando en cada frame
       updateNoteEffects();  // Actualizamos los efectos cada frame
       renderer.render(scene, camera);
     }
