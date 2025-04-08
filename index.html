@@ -1,5 +1,3 @@
-Tú dijiste:
-quiero que en este codigo, en la rama AR, salga debajo de los paneles un arco curvo semitransparente azul claro con un gradiente animado que parezca que el color va de lado a lado continuamente
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -635,7 +633,9 @@ quiero que en este codigo, en la rama AR, salga debajo de los paneles un arco cu
       const z = -radius * Math.cos(angle);
       const panel = createTextPanel(text);
       panel.position.set(x, yPos, z);
-      panel.rotation.x = -THREE.MathUtils.degToRad(75);
+      panel.rotation.x = -Math.PI / 2;
+panel.rotation.y += THREE.MathUtils.degToRad(15);
+
 
       panel.rotation.z = -Math.atan2(panel.position.x, -panel.position.z);
       scene.add(panel);
