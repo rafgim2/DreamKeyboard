@@ -551,10 +551,23 @@
     const activeNoteEffects = [];
 
     // Crear botón AR con soporte para hit-test y hand-tracking
-    document.body.appendChild(ARButton.createButton(renderer, {
-      requiredFeatures: ['hit-test'],
-      optionalFeatures: ['hand-tracking']
-    }));
+const arButton = ARButton.createButton(renderer, {
+  requiredFeatures: ['hit-test'],
+  optionalFeatures: ['hand-tracking']
+});
+document.body.appendChild(arButton);
+
+// Modificar estilos para posicionarlo más abajo y darle fondo morado oscuro
+arButton.style.position = 'absolute';
+arButton.style.bottom = '20px';           // Lo aleja 20px del fondo (puedes ajustar este valor)
+arButton.style.left = '50%';
+arButton.style.transform = 'translateX(-50%)'; // Centrado horizontalmente
+arButton.style.backgroundColor = '#4B0082';  // Fondo morado oscuro (puedes ajustar el código de color si lo deseas)
+arButton.style.border = 'none';
+arButton.style.color = 'white';            // Color de texto blanco para buen contraste
+arButton.style.fontSize = '16px';
+arButton.style.padding = '10px 20px';
+
     
     // Agregar ambas manos a la escena
     const rightHand = renderer.xr.getHand(0);
