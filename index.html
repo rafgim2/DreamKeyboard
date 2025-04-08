@@ -626,7 +626,7 @@
     const arcSpan = Math.PI / 2;
     const startAngle = -arcSpan / 2;
     const angleIncrement = arcSpan / (numPanels - 1);
-    const yPos = -0.5;
+    const yPos = -0.4;
     panelTexts.forEach((text, index) => {
       const angle = startAngle + index * angleIncrement;
       const x = radius * Math.sin(angle);
@@ -648,7 +648,7 @@
       const width = 0.02, height = 0.02;
       const geometry = new THREE.PlaneGeometry(width, height);
       const material = new THREE.MeshBasicMaterial({ 
-        color: panelColor, 
+        color: 0xffffff, 
         transparent: true, 
         opacity: 1 
       });
