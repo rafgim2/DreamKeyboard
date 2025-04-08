@@ -636,6 +636,8 @@
 
       panel.rotation.x = -Math.PI / 4;
       panel.rotation.z = -Math.atan2(panel.position.x, -panel.position.z);
+      panel.lookAt(camera.position);
+
       scene.add(panel);
       panels.push(panel);
     });
