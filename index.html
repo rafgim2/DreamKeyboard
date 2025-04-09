@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <!-- Meta viewport para evitar zoom accidental -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>DreamTouch</title>
+  <title>DreamTouch - Teclado</title>
   <!-- Shim para evitar error de require -->
   <script>
     window.require = function() {};
@@ -35,76 +35,51 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
+      align-items: center;
       border: 6px solid black;
-      padding: 30px;
+      padding: 20px;
       background-color: #FFFFFF;
- 
-      padding-top: -10px;
       color: black;
       width: 350px;
-      height:850px;
       box-sizing: border-box;
       z-index: 1;
     }
     h1 {
       margin: 0 0 20px 0;
-       margin-top:0px;
       font-size: 2.8em;
       text-align: center;
     }
     #copyright {
-  margin-bottom: 20px;
-  margin-top: -20px;
-  font-size: 0.9em;
-  color: blue;
-  width: 100%;
-  text-align: center;
-}
-    #fullscreenBtn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: rgba(0,0,0,0.5);
-      border: none;
-      color: white;
-      padding: 5px 10px;
-      font-size: 1em;
-      cursor: pointer;
-      z-index: 10;
-    }
-    #touchBox {
+      margin-bottom: 20px;
+      font-size: 0.9em;
+      color: blue;
       width: 100%;
-      height: 400px;
-      background-color: black;
-      display: flex;
-      flex-direction: column;
-      position: relative;
+      text-align: center;
     }
+    /* Contenedor que muestra las filas con los matices dinámicos */
     #dynamicMarkingsContainer {
       width: 100%;
-      height: 100%;
       display: flex;
       flex-direction: column;
       user-select: none;
+      margin-bottom: 20px;
     }
+    /* Cada fila tiene un fondo por defecto (gray); cuando se pulsa se resalta en un color aleatorio */
     #dynamicMarkingsContainer > div {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-bottom: 1px solid white;
-      font-size: 0.8em;
+      border: 1px solid black;
+      font-size: 1.2em;
       color: white;
-      user-select: none;
-      background-color: black;
+      background-color: gray;
       transition: background-color 0.3s ease;
-    }
-    #dynamicMarkingsContainer > div:last-child {
-      border-bottom: none;
+      padding: 5px;
+      margin: 2px 0;
+      width: 100%;
     }
     #buttons {
-      margin-top: 40px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -116,7 +91,6 @@
       color: black;
       padding: 10px 20px;
       font-size: 1em;
-      margin-top:5px;
       border: none;
       border-radius: 5px;
       cursor: pointer;
@@ -126,7 +100,6 @@
       color: black;
       padding: 5px 10px;
       font-size: 0.9em;
-      margin-bottom:40px;
       border: none;
       border-radius: 5px;
       cursor: pointer;
@@ -136,66 +109,39 @@
     }
     #fileName {
       font-style: italic;
-      margin-top: -10px;
       color: black;
     }
-    #sampleSongsContainer {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 5px;
-      width: 100%;
-    }
-    #sampleSongs {
-      padding: 5px;
-      font-size: 0.8em;
-      border-radius: 5px;
-      margin-bottom: 20px;
-      border: none;
+    /* Instrucciones de uso */
+    #instructions {
+      margin: 10px;
+      font-size: 0.9em;
       text-align: center;
-    }
-    canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
     }
   </style>
 </head>
 <body>
-  <!-- Interfaz tradicional (oculta en AR) -->
   <div id="container">
-    <button id="fullscreenBtn">⛶</button>
-    <h1>DreamTouch</h1>
+    <h1>DreamTouch - Teclado</h1>
     <div id="copyright">
-      <a href="https://www.youtube.com/@rafgim" target="_blank" style="color: inherit; text-decoration: none; ">© By Rafael Gimeno</a>
+      <a href="https://www.youtube.com/@rafgim" target="_blank" style="color: inherit; text-decoration: none;">© By Rafael Gimeno</a>
     </div>
-    <div id="touchBox">
-      <div id="dynamicMarkingsContainer">
-        <div>Fortissimo</div>
-        <div>Forte</div>
-        <div>Mezzo-forte</div>
-        <div>Mezzo-piano</div>
-        <div>Piano</div>
-        <div>Pianissimo</div>
-      </div>
+    <!-- Contenedor con las 6 filas de matices (de arriba a abajo: Fortissimo a Pianissimo) -->
+    <div id="dynamicMarkingsContainer">
+      <div>Fortissimo</div>
+      <div>Forte</div>
+      <div>Mezzo-forte</div>
+      <div>Mezzo-piano</div>
+      <div>Piano</div>
+      <div>Pianissimo</div>
+    </div>
+    <div id="instructions">
+      Presiona las teclas del teclado físico. La fila asignada determina el matiz dinámico.
     </div>
     <div id="buttons">
       <label for="midiFile" id="loadButton">
         Cargar Archivo MIDI
         <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi,application/x-midi">
       </label>
-      <div id="sampleSongsContainer">
-        <label for="sampleSongs">Canciones de muestra:</label>
-        <select id="sampleSongs">
-          <option value="">-- Selecciona una canción --</option>
-          <option value="Beethoven Para Elisa.mid">Beethoven Para Elisa.mid</option>
-          <option value="Beethoven Patética.mid">Beethoven - Patética.mid</option>
-          <option value="Handel & Halvorsen Passacaglia.mid">Handel & Halvorsen - Passacaglia.mid</option>
-          <option value="R.Korsakov El vuelo del moscardón.mid">R-Korsakov - El vuelo del moscardón.mid</option>
-          <option value="Rachmaninoff Concert nº2 Tercer mov.mid">Rachmaninoff - Concert nº2 Tercer mov.mid</option>
-          <option value="Satie Gymnopedie n1.mid">Satie - Gymnopedie n1.mid</option>
-        </select>
-      </div>
       <div id="fileName"></div>
       <button id="pedalBtn">Pedal ON</button>
     </div>
@@ -245,12 +191,14 @@
       return noteNames[midi % 12] + octave;
     }
 
+    // Calcula la ganancia en función de un valor "relativeY" (0 = arriba, 1 = abajo)
     function computeEffectiveGain(relativeY) {
       var minGain = 0.55;
       var maxGain = 1.5;
       return minGain + (maxGain - minGain) * (1 - relativeY);
     }
 
+    // Función para reproducir nota con pedal activado
     function playPianoNote(gain, midiNote) {
       if (pianoInstrument) {
         var noteName = midiNoteToNoteName(midiNote);
@@ -272,6 +220,7 @@
       }
     }
 
+    // Función para reproducir nota sin pedal (permitiendo detenerla en keyup)
     function playNoteNonPedal(gain, midiNote) {
       if (pianoInstrument) {
         var noteName = midiNoteToNoteName(midiNote);
@@ -303,6 +252,7 @@
       }
     }
 
+    // Carga de archivo MIDI desde la entrada de archivo
     document.getElementById('midiFile').addEventListener('change', function(e) {
       document.getElementById('fileName').textContent = e.target.files[0].name;
       var reader = new FileReader();
@@ -317,6 +267,7 @@
       reader.readAsBinaryString(e.target.files[0]);
     });
 
+    // Función para cargar un archivo MIDI desde una URL (opcional)
     function loadMidiFromUrl(url, fileName) {
       fetch(url)
         .then(response => response.arrayBuffer())
@@ -336,8 +287,9 @@
         .catch(error => console.error("Error al cargar el MIDI:", error));
     }
 
+    // Cargar un MIDI por defecto si se desea
     function loadDefaultMidi() {
-      const defaultMidiUrl = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/Handel & Halvorsen Passacaglia.mid";
+      const defaultMidiUrl = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/Handel%20&%20Halvorsen%20Passacaglia.mid";
       const defaultFileName = "Handel & Halvorsen Passacaglia.mid";
       loadMidiFromUrl(defaultMidiUrl, defaultFileName);
     }
@@ -364,34 +316,55 @@
       console.log("Notas MIDI extraídas:", notesToPlay);
     }
 
-    document.getElementById('sampleSongs').addEventListener('change', function() {
-      if (this.value) {
-        const fileName = this.value;
-        const url = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/" + encodeURIComponent(fileName);
-        loadMidiFromUrl(url, fileName);
-      }
+    // Cargar MIDI por defecto al iniciar
+    document.addEventListener('DOMContentLoaded', function(){
+      loadDefaultMidi();
     });
 
-    function handlePointerDown(e) {
-      if (e.pointerType === "mouse" && e.buttons !== 1) return;
-      var rect = e.currentTarget.getBoundingClientRect();
-      var y = e.clientY;
-      var relativeY = (y - rect.top) / rect.height;
+    // Mapeo de teclas a filas de matiz dinámico.
+    // Se utiliza event.code para identificar la tecla y asignarla a una “fila” (0 a 5)
+    // Puedes modificar este objeto según tu teclado o preferencia.
+    const keyRowMap = {
+      // Fila 0: Teclas de función (arriba, Fortissimo)
+      'F1': 0, 'F2': 0, 'F3': 0, 'F4': 0, 'F5': 0, 'F6': 0, 'F7': 0, 'F8': 0, 'F9': 0, 'F10': 0, 'F11': 0, 'F12': 0,
+      // Fila 1: Números y símbolos
+      'Backquote': 1, 'Digit1': 1, 'Digit2': 1, 'Digit3': 1, 'Digit4': 1,
+      'Digit5': 1, 'Digit6': 1, 'Digit7': 1, 'Digit8': 1, 'Digit9': 1, 'Digit0': 1, 'Minus': 1, 'Equal': 1,
+      // Fila 2: Q, W, E, R, T, Y, U, I, O, P
+      'KeyQ': 2, 'KeyW': 2, 'KeyE': 2, 'KeyR': 2, 'KeyT': 2, 'KeyY': 2, 'KeyU': 2, 'KeyI': 2, 'KeyO': 2, 'KeyP': 2,
+      'BracketLeft': 2, 'BracketRight': 2,
+      // Fila 3: A, S, D, F, G, H, J, K, L, ;, '
+      'KeyA': 3, 'KeyS': 3, 'KeyD': 3, 'KeyF': 3, 'KeyG': 3, 'KeyH': 3, 'KeyJ': 3, 'KeyK': 3, 'KeyL': 3, 'Semicolon': 3, 'Quote': 3,
+      // Fila 4: Z, X, C, V, B, N, M, , . /
+      'KeyZ': 4, 'KeyX': 4, 'KeyC': 4, 'KeyV': 4, 'KeyB': 4, 'KeyN': 4, 'KeyM': 4, 'Comma': 4, 'Period': 4, 'Slash': 4,
+      // Fila 5: Barra espaciadora (Pianissimo)
+      'Space': 5
+    };
+
+    const totalRows = 6; // De 0 a 5
+
+    // Manejo de eventos de keydown: se reproducirá la nota correspondiente
+    document.addEventListener('keydown', function(e) {
+      // Evitar que se repita la acción si la tecla se mantiene pulsada
+      if (e.repeat) return;
+      if (!(e.code in keyRowMap)) return; // Si la tecla no está mapeada, se ignora
+
+      var rowIndex = keyRowMap[e.code]; // 0 (arriba) a 5 (abajo)
+      var relativeY = rowIndex / (totalRows - 1); // 0 a 1
       var effectiveGain = computeEffectiveGain(relativeY);
-      var randomColor = getRandomColor();
-      document.body.style.backgroundColor = randomColor;
+
+      // Actualiza el fondo de la fila correspondiente en dynamicMarkingsContainer
       var dynamicContainer = document.getElementById('dynamicMarkingsContainer');
       var rows = dynamicContainer.children;
       for (var i = 0; i < rows.length; i++) {
-        rows[i].style.backgroundColor = 'black';
+        rows[i].style.backgroundColor = 'gray';
       }
-      var containerRect = dynamicContainer.getBoundingClientRect();
-      var relativeYInContainer = (e.clientY - containerRect.top) / containerRect.height;
-      var rowIndex = Math.floor(relativeYInContainer * rows.length);
-      if (rowIndex < 0 || rowIndex >= rows.length) {
-        rowIndex = 0;
+      var randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
+      if (rows[rowIndex]) {
+        rows[rowIndex].style.backgroundColor = randomColor;
       }
-      rows[rowIndex].style.backgroundColor = randomColor;
+
+      // Reproducir la siguiente nota del MIDI si está cargado, o la nota por defecto
       var notesArray = [];
       if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
         var groupThreshold = 0.001;
@@ -420,51 +393,28 @@
         }
       }
       if (!pedalOn) {
-        activeNotes[e.pointerId] = notesArray;
+        activeNotes[e.code] = notesArray;
       }
-    }
+    });
 
-    function handlePointerUp(e) {
-      if (!pedalOn && activeNotes[e.pointerId]) {
-        activeNotes[e.pointerId].forEach(function(noteObj) {
+    // En keyup, si no está activado el pedal, detener la(s) nota(s)
+    document.addEventListener('keyup', function(e) {
+      if (e.code in activeNotes) {
+        activeNotes[e.code].forEach(function(noteObj) {
           noteObj.stop();
         });
-        delete activeNotes[e.pointerId];
+        delete activeNotes[e.code];
+        // Restaurar el color de la fila correspondiente
+        var dynamicContainer = document.getElementById('dynamicMarkingsContainer');
+        var rows = dynamicContainer.children;
+        var rowIndex = keyRowMap[e.code];
+        if (rows[rowIndex]) {
+          rows[rowIndex].style.backgroundColor = 'gray';
+        }
       }
-    }
+    });
 
-    var touchBox = document.getElementById('touchBox');
-    if (window.PointerEvent) {
-      touchBox.addEventListener('pointerdown', handlePointerDown);
-      touchBox.addEventListener('pointerup', handlePointerUp);
-      touchBox.addEventListener('pointercancel', handlePointerUp);
-    } else {
-      touchBox.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        Array.from(e.changedTouches).forEach(function(touch) {
-          var fakeEvent = {
-            clientY: touch.clientY,
-            currentTarget: e.currentTarget,
-            pointerId: "touch-" + touch.identifier,
-            pointerType: "touch",
-            target: e.target
-          };
-          handlePointerDown(fakeEvent);
-        });
-      });
-      touchBox.addEventListener('touchend', function(e) {
-        Array.from(e.changedTouches).forEach(function(touch) {
-          var fakeEvent = {
-            pointerId: "touch-" + touch.identifier,
-            pointerType: "touch",
-            target: e.target
-          };
-          handlePointerUp(fakeEvent);
-        });
-      });
-      touchBox.addEventListener('click', handlePointerDown);
-    }
-
+    // Reanudar el AudioContext con la primera interacción (click)
     document.addEventListener('click', function() {
       if (audioContext.state === 'suspended') {
         audioContext.resume().then(() => {
@@ -473,28 +423,7 @@
       }
     });
 
-    var fullscreenBtn = document.getElementById('fullscreenBtn');
-    fullscreenBtn.addEventListener('click', function(e) {
-      var elem = document.getElementById('container');
-      if (!document.fullscreenElement) {
-        elem.requestFullscreen().then(() => {
-          fullscreenBtn.textContent = "×";
-        }).catch(err => {
-          console.error("Error al activar pantalla completa:", err);
-        });
-      } else {
-        document.exitFullscreen().then(() => {
-          fullscreenBtn.textContent = "⛶";
-        });
-      }
-      e.stopPropagation();
-    });
-    document.addEventListener('fullscreenchange', function() {
-      if (!document.fullscreenElement) {
-        fullscreenBtn.textContent = "⛶";
-      }
-    });
-
+    // Botón para alternar el estado del pedal
     var pedalBtn = document.getElementById('pedalBtn');
     pedalBtn.addEventListener('click', function() {
       pedalOn = !pedalOn;
@@ -502,383 +431,6 @@
       pedalBtn.style.backgroundColor = pedalOn ? "#90EE90" : "#ADD8E6";
       console.log("Pedal:", pedalOn ? "ON" : "OFF");
     });
-
-    window.addEventListener('load', loadDefaultMidi);
-  </script>
-
-  <!-- Código AR usando Three.js y ARButton -->
-  <script type="module">
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
-    import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled = true;
-    // Ocultamos el canvas de AR por defecto
-    renderer.domElement.style.display = 'none';
-    document.body.appendChild(renderer.domElement);
-
-    // Array para almacenar los efectos visuales activos
-    const activeNoteEffects = [];
-
-    // Crear botón AR con soporte para hit-test y hand-tracking
-    const arButton = ARButton.createButton(renderer, {
-      requiredFeatures: ['hit-test'],
-      optionalFeatures: ['hand-tracking']
-    });
-    document.body.appendChild(arButton);
-    // Estilos para el ARButton
-    
-     arButton.style.position = 'absolute';
-arButton.style.bottom = '20px';
-    arButton.style.backgroundColor = '#4B0082';
-    arButton.style.border = 'none';
-    arButton.style.color = 'white';
-    arButton.style.fontSize = '16px';
-
-    // Cuando se inicie la sesión AR, ocultamos el menú y mostramos el canvas AR
-    renderer.xr.addEventListener('sessionstart', () => {
-      document.getElementById('container').style.display = 'none';
-      renderer.domElement.style.display = 'block';
-    });
-    // Al finalizar la sesión AR, volvemos a mostrar el menú y ocultamos el canvas AR
-    renderer.xr.addEventListener('sessionend', () => {
-      document.getElementById('container').style.display = 'flex';
-      renderer.domElement.style.display = 'none';
-    });
-
-    // Agregar ambas manos a la escena
-    const rightHand = renderer.xr.getHand(0);
-    const leftHand  = renderer.xr.getHand(1);
-    scene.add(rightHand);
-    scene.add(leftHand);
-
-    // Agregar controladores para detectar colisiones
-    const controller0 = renderer.xr.getController(0);
-    const controller1 = renderer.xr.getController(1);
-    scene.add(controller0);
-    scene.add(controller1);
-
-    // NUEVA FUNCIONALIDAD:
-    // Variable global para almacenar el último panel activado en AR
-    let lastActivatedARPanel = null;
-
-    // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
-    function createTextPanel(text) {
-      const panelGroup = new THREE.Group();
-      // Panel: ancho 0.15 y altura 0.05
-      const panelWidth = 0.15, panelHeight = 0.05;
-      // Fondo: morado, semitransparente, doble cara
-      const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
-      const bgMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x800080, 
-        transparent: true, 
-        opacity: 0.75,
-        side: THREE.DoubleSide 
-      });
-      const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
-      bgMesh.renderOrder = 0;
-      panelGroup.add(bgMesh);
-      
-      // Texto: dibujamos las abreviaturas (ff, f, mf, mp, p, pp) en un canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = 256;
-      canvas.height = 64;
-      const context = canvas.getContext('2d');
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.font = '32px sans-serif';
-      context.fillStyle = 'white';
-      context.textAlign = 'center';
-      context.textBaseline = 'middle';
-      context.fillText(text, canvas.width / 2, canvas.height / 2);
-      const textTexture = new THREE.CanvasTexture(canvas);
-      const textMaterial = new THREE.MeshBasicMaterial({ 
-        map: textTexture, 
-        transparent: true,
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1
-      });
-      textMaterial.depthTest = false;
-      
-      const textGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
-      const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-      textMesh.position.z = 0.005;
-      textMesh.renderOrder = 2;
-      panelGroup.add(textMesh);
-      
-      // Collider invisible para detección (20% mayor)
-      const colliderGeometry = new THREE.PlaneGeometry(panelWidth * 1.2, panelHeight * 0.2);
-      const colliderMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x000000, 
-        opacity: 0, 
-        transparent: true 
-      });
-      colliderMaterial.colorWrite = false;
-      const colliderMesh = new THREE.Mesh(colliderGeometry, colliderMaterial);
-      colliderMesh.position.z = 0.02;
-      colliderMesh.renderOrder = 1;
-      panelGroup.add(colliderMesh);
-      
-      panelGroup.userData.bgMaterial = bgMaterial;
-      return panelGroup;
-    }
-
-    // Crear los paneles y ubicarlos en un arco frente al usuario.
-    const panelTexts = ["ff", "f", "mf", "mp", "p", "pp"];
-    const panels = [];
-    const numPanels = panelTexts.length;
-    const radius = 0.8;
-    const arcSpan = Math.PI / 2;
-    const startAngle = -arcSpan / 2;
-    const angleIncrement = arcSpan / (numPanels - 1);
-    const yPos = -0.3;
-    panelTexts.forEach((text, index) => {
-      const angle = startAngle + index * angleIncrement;
-      const x = radius * Math.sin(angle);
-      const z = -radius * Math.cos(angle);
-      const panel = createTextPanel(text);
-      panel.position.set(x, yPos, z);
-
-      panel.rotation.x = -Math.PI / 4;
-      panel.rotation.z = -Math.atan2(panel.position.x, -panel.position.z);
-      panel.lookAt(camera.position);
-
-      scene.add(panel);
-      panels.push(panel);
-    });
-
-    // Función para crear el efecto visual del rectángulo que se eleva
-    function createNoteEffect(panel) {
-      const startPos = new THREE.Vector3();
-      panel.getWorldPosition(startPos);
-      startPos.y += 0.04;
-      const panelColor = panel.userData.bgMaterial.color.getHex();
-      const width = 0.02, height = 0.02;
-      const geometry = new THREE.PlaneGeometry(width, height);
-      const material = new THREE.MeshBasicMaterial({ 
-        color: 0xffffff, 
-        transparent: true, 
-        opacity: 1 
-      });
-      const noteRect = new THREE.Mesh(geometry, material);
-      noteRect.position.copy(startPos);
-      noteRect.lookAt(camera.position);
-      scene.add(noteRect);
-      const totalUpDistance = 2.3;
-      const constantSpeed = 0.1; 
-      const duration = (totalUpDistance / constantSpeed) * 1000;
-      activeNoteEffects.push({
-        noteRect: noteRect,
-        startTime: performance.now(),
-        duration: duration,
-        startPos: startPos.clone(),
-        totalUpDistance: totalUpDistance
-      });
-    }
-
-    // Actualizar efectos visuales cada frame
-    function updateNoteEffects() {
-      const currentTime = performance.now();
-      for (let i = activeNoteEffects.length - 1; i >= 0; i--) {
-        const effect = activeNoteEffects[i];
-        const elapsed = currentTime - effect.startTime;
-        const progress = elapsed / effect.duration;
-        if (progress >= 1) {
-          scene.remove(effect.noteRect);
-          activeNoteEffects.splice(i, 1);
-        } else {
-          effect.noteRect.position.y = effect.startPos.y + progress * effect.totalUpDistance;
-          effect.noteRect.material.opacity = 1 - progress;
-          effect.noteRect.lookAt(camera.position);
-        }
-      }
-    }
-
-    // Se modifica onPanelSelect para almacenar el último panel activado
-    function onPanelSelect(panel) {
-      // Almacenar el último panel activado para la nueva funcionalidad
-      lastActivatedARPanel = panel;
-      const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
-      panel.userData.bgMaterial.color.copy(randomColor);
-      setTimeout(() => {
-        panel.userData.bgMaterial.color.set(0x800080);
-      }, 200);
-      createNoteEffect(panel);
-      const panelIndex = panels.indexOf(panel);
-      window.handleARPanelSelect(panelIndex);
-    }
-
-    // Configurar controlador XR para dispositivos con mandos
-    controller0.addEventListener('select', () => {
-      const tempMatrix = new THREE.Matrix4();
-      tempMatrix.identity().extractRotation(controller0.matrixWorld);
-      const raycaster = new THREE.Raycaster();
-      raycaster.ray.origin.setFromMatrixPosition(controller0.matrixWorld);
-      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-      const intersects = raycaster.intersectObjects(panels, true);
-      if (intersects.length > 0) {
-        const selectedPanel = intersects[0].object.parent;
-        onPanelSelect(selectedPanel);
-      }
-    });
-    scene.add(controller0);
-
-    // Los eventos 'squeezestart' se mantienen, por si acaso.
-    controller0.addEventListener('squeezestart', () => {
-      if (lastActivatedARPanel) {
-        onPanelSelect(lastActivatedARPanel);
-      }
-    });
-    controller1.addEventListener('squeezestart', () => {
-      if (lastActivatedARPanel) {
-        onPanelSelect(lastActivatedARPanel);
-      }
-    });
-
-    // Colisiones con las manos
-    function checkHandCollisions() {
-      const threshold = 0.08;
-      const now = performance.now();
-      for (let handIndex = 0; handIndex < 2; handIndex++) {
-        const hand = renderer.xr.getHand(handIndex);
-        if (hand) {
-          let fingerPos = new THREE.Vector3();
-          if (hand.joints) {
-            const indexTip = hand.joints['index-finger-tip'];
-            if (indexTip) {
-              indexTip.getWorldPosition(fingerPos);
-            } else if (hand.children.length > 0) {
-              hand.children[0].getWorldPosition(fingerPos);
-            }
-          } else if (hand.children.length > 0) {
-            hand.children[0].getWorldPosition(fingerPos);
-          } else {
-            continue;
-          }
-          panels.forEach(panel => {
-            const panelCenter = new THREE.Vector3();
-            panel.getWorldPosition(panelCenter);
-            if (fingerPos.distanceTo(panelCenter) < threshold) {
-              if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 150) {
-                onPanelSelect(panel);
-                panel.userData.lastActivated = now;
-              }
-            }
-          });
-        }
-      }
-    }
-
-    function checkControllerCollisions() {
-      const threshold = 0.12;
-      const now = performance.now();
-      const controllers = [];
-      if (controller0) controllers.push(controller0);
-      if (controller1) controllers.push(controller1);
-      controllers.forEach(ctrl => {
-        let ctrlPos = new THREE.Vector3();
-        ctrl.getWorldPosition(ctrlPos);
-        panels.forEach(panel => {
-          const panelCenter = new THREE.Vector3();
-          panel.getWorldPosition(panelCenter);
-          if (ctrlPos.distanceTo(panelCenter) < threshold) {
-            if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 150) {
-              onPanelSelect(panel);
-              panel.userData.lastActivated = now;
-            }
-          }
-        });
-      });
-    }
-
-    // NUEVA FUNCIONALIDAD: Verificar individualmente el estado de cada botón de cada mando
-    function checkAllControllerButtons() {
-      [controller0, controller1].forEach(ctrl => {
-        if (ctrl && ctrl.gamepad && ctrl.gamepad.buttons) {
-          // Inicializamos un array previo si aún no existe
-          if (!ctrl.userData.prevButtons) {
-            ctrl.userData.prevButtons = new Array(ctrl.gamepad.buttons.length).fill(false);
-          }
-          ctrl.gamepad.buttons.forEach((button, index) => {
-            // Si el botón acaba de pasar de no presionado a presionado
-            if (button.pressed && !ctrl.userData.prevButtons[index]) {
-              if (lastActivatedARPanel) {
-                onPanelSelect(lastActivatedARPanel);
-              }
-            }
-            // Actualizar el estado previo para el siguiente frame
-            ctrl.userData.prevButtons[index] = button.pressed;
-          });
-        }
-      });
-    }
-
-    renderer.domElement.addEventListener('touchstart', (event) => {
-      const touch = event.touches[0];
-      const x = (touch.clientX / window.innerWidth) * 2 - 1;
-      const y = - (touch.clientY / window.innerHeight) * 2 + 1;
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-      const intersects = raycaster.intersectObjects(panels, true);
-      if (intersects.length > 0) {
-        const selectedPanel = intersects[0].object.parent;
-        onPanelSelect(selectedPanel);
-      }
-    });
-
-    function render() {
-      checkHandCollisions();
-      checkControllerCollisions();
-      // Verificar el estado de cada botón en cada frame
-      checkAllControllerButtons();
-      updateNoteEffects();
-      renderer.render(scene, camera);
-    }
-    function animate() {
-      renderer.setAnimationLoop(render);
-    }
-    animate();
-  </script>
-  <script>
-    // Función global para manejar la selección de panel en AR
-    window.handleARPanelSelect = function(panelIndex) {
-      const minGain = 0.15, maxGain = 1.0;
-      const effectiveGain = maxGain - (panelIndex / 5) * (maxGain - minGain);
-      if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
-        let groupThreshold = 0.001;
-        let groupEnd = currentNoteIndex + 1;
-        while (groupEnd < notesToPlay.length &&
-               Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
-          groupEnd++;
-        }
-        for (let i = currentNoteIndex; i < groupEnd; i++) {
-          let note = notesToPlay[i];
-          if (pedalOn) {
-            playPianoNote(effectiveGain, note.noteNumber);
-          } else {
-            playNoteNonPedal(effectiveGain, note.noteNumber);
-          }
-        }
-        currentNoteIndex = groupEnd;
-        if (currentNoteIndex >= notesToPlay.length) {
-          currentNoteIndex = 0;
-        }
-      } else {
-        if (pedalOn) {
-          playPianoNote(effectiveGain, defaultMidiNote);
-        } else {
-          playNoteNonPedal(effectiveGain, defaultMidiNote);
-        }
-      }
-    };
-
-    function getRandomColor() {
-      return '#' + Math.floor(Math.random() * 16777215).toString(16);
-    }
   </script>
 </body>
 </html>
