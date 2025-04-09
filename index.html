@@ -16,9 +16,9 @@
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
   <style>
-    /* Se elimina el transform scale para evitar la compresión vertical en PC */
     html {
-      box-sizing: border-box;
+      transform: scale(0.9);
+      transform-origin: top center;
     }
     body {
       background-color: #FFFFFF;
@@ -28,9 +28,9 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
+      padding-top: 10px;
       transition: background-color 0.3s ease;
     }
-    /* Se ajusta el contenedor para que no se corte en pantallas de escritorio */
     #container {
       position: relative;
       display: flex;
@@ -39,28 +39,28 @@
       border: 6px solid black;
       padding: 30px;
       background-color: #FFFFFF;
+ 
+      padding-top: -10px;
       color: black;
       width: 350px;
-      height: auto;
-      max-height: 90vh;
-      overflow-y: auto;
+      height:850px;
       box-sizing: border-box;
       z-index: 1;
     }
     h1 {
       margin: 0 0 20px 0;
-      margin-top: 0;
+       margin-top:0px;
       font-size: 2.8em;
       text-align: center;
     }
     #copyright {
-      margin-bottom: 20px;
-      margin-top: -20px;
-      font-size: 0.9em;
-      color: blue;
-      width: 100%;
-      text-align: center;
-    }
+  margin-bottom: 20px;
+  margin-top: -20px;
+  font-size: 0.9em;
+  color: blue;
+  width: 100%;
+  text-align: center;
+}
     #fullscreenBtn {
       position: absolute;
       top: 10px;
@@ -116,7 +116,7 @@
       color: black;
       padding: 10px 20px;
       font-size: 1em;
-      margin-top: 5px;
+      margin-top:5px;
       border: none;
       border-radius: 5px;
       cursor: pointer;
@@ -126,7 +126,7 @@
       color: black;
       padding: 5px 10px;
       font-size: 0.9em;
-      margin-bottom: 40px;
+      margin-bottom:40px;
       border: none;
       border-radius: 5px;
       cursor: pointer;
@@ -167,7 +167,7 @@
     <button id="fullscreenBtn">⛶</button>
     <h1>DreamTouch</h1>
     <div id="copyright">
-      <a href="https://www.youtube.com/@rafgim" target="_blank" style="color: inherit; text-decoration: none;">© By Rafael Gimeno</a>
+      <a href="https://www.youtube.com/@rafgim" target="_blank" style="color: inherit; text-decoration: none; ">© By Rafael Gimeno</a>
     </div>
     <div id="touchBox">
       <div id="dynamicMarkingsContainer">
@@ -511,7 +511,6 @@
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js';
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/webxr/ARButton.js';
 
-    // Configurar la escena y renderizador AR
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -524,327 +523,325 @@
     // Array para almacenar los efectos visuales activos
     const activeNoteEffects = [];
 
-    // Solo mostrar ARButton y ejecutar la lógica AR si el dispositivo soporta hand tracking
-    if ('XRHand' in window) {
-      const arButton = ARButton.createButton(renderer, {
-        requiredFeatures: ['hit-test'],
-        optionalFeatures: ['hand-tracking']
+    // Crear botón AR con soporte para hit-test y hand-tracking
+    const arButton = ARButton.createButton(renderer, {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['hand-tracking']
+    });
+    document.body.appendChild(arButton);
+    // Estilos para el ARButton
+    
+     arButton.style.position = 'absolute';
+arButton.style.bottom = '20px';
+    arButton.style.backgroundColor = '#4B0082';
+    arButton.style.border = 'none';
+    arButton.style.color = 'white';
+    arButton.style.fontSize = '16px';
+
+    // Cuando se inicie la sesión AR, ocultamos el menú y mostramos el canvas AR
+    renderer.xr.addEventListener('sessionstart', () => {
+      document.getElementById('container').style.display = 'none';
+      renderer.domElement.style.display = 'block';
+    });
+    // Al finalizar la sesión AR, volvemos a mostrar el menú y ocultamos el canvas AR
+    renderer.xr.addEventListener('sessionend', () => {
+      document.getElementById('container').style.display = 'flex';
+      renderer.domElement.style.display = 'none';
+    });
+
+    // Agregar ambas manos a la escena
+    const rightHand = renderer.xr.getHand(0);
+    const leftHand  = renderer.xr.getHand(1);
+    scene.add(rightHand);
+    scene.add(leftHand);
+
+    // Agregar controladores para detectar colisiones
+    const controller0 = renderer.xr.getController(0);
+    const controller1 = renderer.xr.getController(1);
+    scene.add(controller0);
+    scene.add(controller1);
+
+    // NUEVA FUNCIONALIDAD:
+    // Variable global para almacenar el último panel activado en AR
+    let lastActivatedARPanel = null;
+
+    // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
+    function createTextPanel(text) {
+      const panelGroup = new THREE.Group();
+      // Panel: ancho 0.15 y altura 0.05
+      const panelWidth = 0.15, panelHeight = 0.05;
+      // Fondo: morado, semitransparente, doble cara
+      const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
+      const bgMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x800080, 
+        transparent: true, 
+        opacity: 0.75,
+        side: THREE.DoubleSide 
       });
-      document.body.appendChild(arButton);
-      // Estilos para el ARButton
-      arButton.style.position = 'absolute';
-      arButton.style.bottom = '20px';
-      arButton.style.backgroundColor = '#4B0082';
-      arButton.style.border = 'none';
-      arButton.style.color = 'white';
-      arButton.style.fontSize = '16px';
-
-      // Cuando se inicie la sesión AR, ocultamos el menú y mostramos el canvas AR
-      renderer.xr.addEventListener('sessionstart', () => {
-        document.getElementById('container').style.display = 'none';
-        renderer.domElement.style.display = 'block';
+      const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
+      bgMesh.renderOrder = 0;
+      panelGroup.add(bgMesh);
+      
+      // Texto: dibujamos las abreviaturas (ff, f, mf, mp, p, pp) en un canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const context = canvas.getContext('2d');
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.font = '32px sans-serif';
+      context.fillStyle = 'white';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(text, canvas.width / 2, canvas.height / 2);
+      const textTexture = new THREE.CanvasTexture(canvas);
+      const textMaterial = new THREE.MeshBasicMaterial({ 
+        map: textTexture, 
+        transparent: true,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1
       });
-      // Al finalizar la sesión AR, volvemos a mostrar el menú y ocultamos el canvas AR
-      renderer.xr.addEventListener('sessionend', () => {
-        document.getElementById('container').style.display = 'flex';
-        renderer.domElement.style.display = 'none';
+      textMaterial.depthTest = false;
+      
+      const textGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
+      const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+      textMesh.position.z = 0.005;
+      textMesh.renderOrder = 2;
+      panelGroup.add(textMesh);
+      
+      // Collider invisible para detección (20% mayor)
+      const colliderGeometry = new THREE.PlaneGeometry(panelWidth * 1.2, panelHeight * 0.2);
+      const colliderMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x000000, 
+        opacity: 0, 
+        transparent: true 
       });
+      colliderMaterial.colorWrite = false;
+      const colliderMesh = new THREE.Mesh(colliderGeometry, colliderMaterial);
+      colliderMesh.position.z = 0.02;
+      colliderMesh.renderOrder = 1;
+      panelGroup.add(colliderMesh);
+      
+      panelGroup.userData.bgMaterial = bgMaterial;
+      return panelGroup;
+    }
 
-      // Agregar ambas manos a la escena
-      const rightHand = renderer.xr.getHand(0);
-      const leftHand  = renderer.xr.getHand(1);
-      scene.add(rightHand);
-      scene.add(leftHand);
+    // Crear los paneles y ubicarlos en un arco frente al usuario.
+    const panelTexts = ["ff", "f", "mf", "mp", "p", "pp"];
+    const panels = [];
+    const numPanels = panelTexts.length;
+    const radius = 0.8;
+    const arcSpan = Math.PI / 2;
+    const startAngle = -arcSpan / 2;
+    const angleIncrement = arcSpan / (numPanels - 1);
+    const yPos = -0.3;
+    panelTexts.forEach((text, index) => {
+      const angle = startAngle + index * angleIncrement;
+      const x = radius * Math.sin(angle);
+      const z = -radius * Math.cos(angle);
+      const panel = createTextPanel(text);
+      panel.position.set(x, yPos, z);
 
-      // Agregar controladores para detectar colisiones
-      const controller0 = renderer.xr.getController(0);
-      const controller1 = renderer.xr.getController(1);
-      scene.add(controller0);
-      scene.add(controller1);
+      panel.rotation.x = -Math.PI / 4;
+      panel.rotation.z = -Math.atan2(panel.position.x, -panel.position.z);
+      panel.lookAt(camera.position);
 
-      // NUEVA FUNCIONALIDAD:
-      // Variable global para almacenar el último panel activado en AR
-      let lastActivatedARPanel = null;
+      scene.add(panel);
+      panels.push(panel);
+    });
 
-      // Función para crear un panel en AR: grupo con fondo, texto y collider invisible
-      function createTextPanel(text) {
-        const panelGroup = new THREE.Group();
-        // Panel: ancho 0.15 y altura 0.05
-        const panelWidth = 0.15, panelHeight = 0.05;
-        // Fondo: morado, semitransparente, doble cara
-        const bgGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
-        const bgMaterial = new THREE.MeshBasicMaterial({ 
-          color: 0x800080, 
-          transparent: true, 
-          opacity: 0.75,
-          side: THREE.DoubleSide 
-        });
-        const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
-        bgMesh.renderOrder = 0;
-        panelGroup.add(bgMesh);
-        
-        // Texto: dibujamos las abreviaturas (ff, f, mf, mp, p, pp) en un canvas
-        const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 64;
-        const context = canvas.getContext('2d');
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        context.font = '32px sans-serif';
-        context.fillStyle = 'white';
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillText(text, canvas.width / 2, canvas.height / 2);
-        const textTexture = new THREE.CanvasTexture(canvas);
-        const textMaterial = new THREE.MeshBasicMaterial({ 
-          map: textTexture, 
-          transparent: true,
-          side: THREE.DoubleSide,
-          polygonOffset: true,
-          polygonOffsetFactor: -1,
-          polygonOffsetUnits: -1
-        });
-        textMaterial.depthTest = false;
-        
-        const textGeometry = new THREE.PlaneGeometry(panelWidth, panelHeight);
-        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-        textMesh.position.z = 0.005;
-        textMesh.renderOrder = 2;
-        panelGroup.add(textMesh);
-        
-        // Collider invisible para detección (20% mayor)
-        const colliderGeometry = new THREE.PlaneGeometry(panelWidth * 1.2, panelHeight * 0.2);
-        const colliderMaterial = new THREE.MeshBasicMaterial({ 
-          color: 0x000000, 
-          opacity: 0, 
-          transparent: true 
-        });
-        colliderMaterial.colorWrite = false;
-        const colliderMesh = new THREE.Mesh(colliderGeometry, colliderMaterial);
-        colliderMesh.position.z = 0.02;
-        colliderMesh.renderOrder = 1;
-        panelGroup.add(colliderMesh);
-        
-        panelGroup.userData.bgMaterial = bgMaterial;
-        return panelGroup;
-      }
-
-      // Crear los paneles y ubicarlos en un arco frente al usuario.
-      const panelTexts = ["ff", "f", "mf", "mp", "p", "pp"];
-      const panels = [];
-      const numPanels = panelTexts.length;
-      const radius = 0.8;
-      const arcSpan = Math.PI / 2;
-      const startAngle = -arcSpan / 2;
-      const angleIncrement = arcSpan / (numPanels - 1);
-      const yPos = -0.3;
-      panelTexts.forEach((text, index) => {
-        const angle = startAngle + index * angleIncrement;
-        const x = radius * Math.sin(angle);
-        const z = -radius * Math.cos(angle);
-        const panel = createTextPanel(text);
-        panel.position.set(x, yPos, z);
-
-        panel.rotation.x = -Math.PI / 4;
-        panel.rotation.z = -Math.atan2(panel.position.x, -panel.position.z);
-        panel.lookAt(camera.position);
-
-        scene.add(panel);
-        panels.push(panel);
+    // Función para crear el efecto visual del rectángulo que se eleva
+    function createNoteEffect(panel) {
+      const startPos = new THREE.Vector3();
+      panel.getWorldPosition(startPos);
+      startPos.y += 0.04;
+      const panelColor = panel.userData.bgMaterial.color.getHex();
+      const width = 0.02, height = 0.02;
+      const geometry = new THREE.PlaneGeometry(width, height);
+      const material = new THREE.MeshBasicMaterial({ 
+        color: 0xffffff, 
+        transparent: true, 
+        opacity: 1 
       });
+      const noteRect = new THREE.Mesh(geometry, material);
+      noteRect.position.copy(startPos);
+      noteRect.lookAt(camera.position);
+      scene.add(noteRect);
+      const totalUpDistance = 2.3;
+      const constantSpeed = 0.1; 
+      const duration = (totalUpDistance / constantSpeed) * 1000;
+      activeNoteEffects.push({
+        noteRect: noteRect,
+        startTime: performance.now(),
+        duration: duration,
+        startPos: startPos.clone(),
+        totalUpDistance: totalUpDistance
+      });
+    }
 
-      // Función para crear el efecto visual del rectángulo que se eleva
-      function createNoteEffect(panel) {
-        const startPos = new THREE.Vector3();
-        panel.getWorldPosition(startPos);
-        startPos.y += 0.04;
-        const width = 0.02, height = 0.02;
-        const geometry = new THREE.PlaneGeometry(width, height);
-        const material = new THREE.MeshBasicMaterial({ 
-          color: 0xffffff, 
-          transparent: true, 
-          opacity: 1 
-        });
-        const noteRect = new THREE.Mesh(geometry, material);
-        noteRect.position.copy(startPos);
-        noteRect.lookAt(camera.position);
-        scene.add(noteRect);
-        const totalUpDistance = 2.3;
-        const constantSpeed = 0.1; 
-        const duration = (totalUpDistance / constantSpeed) * 1000;
-        activeNoteEffects.push({
-          noteRect: noteRect,
-          startTime: performance.now(),
-          duration: duration,
-          startPos: startPos.clone(),
-          totalUpDistance: totalUpDistance
-        });
-      }
-
-      // Actualizar efectos visuales cada frame
-      function updateNoteEffects() {
-        const currentTime = performance.now();
-        for (let i = activeNoteEffects.length - 1; i >= 0; i--) {
-          const effect = activeNoteEffects[i];
-          const elapsed = currentTime - effect.startTime;
-          const progress = elapsed / effect.duration;
-          if (progress >= 1) {
-            scene.remove(effect.noteRect);
-            activeNoteEffects.splice(i, 1);
-          } else {
-            effect.noteRect.position.y = effect.startPos.y + progress * effect.totalUpDistance;
-            effect.noteRect.material.opacity = 1 - progress;
-            effect.noteRect.lookAt(camera.position);
-          }
+    // Actualizar efectos visuales cada frame
+    function updateNoteEffects() {
+      const currentTime = performance.now();
+      for (let i = activeNoteEffects.length - 1; i >= 0; i--) {
+        const effect = activeNoteEffects[i];
+        const elapsed = currentTime - effect.startTime;
+        const progress = elapsed / effect.duration;
+        if (progress >= 1) {
+          scene.remove(effect.noteRect);
+          activeNoteEffects.splice(i, 1);
+        } else {
+          effect.noteRect.position.y = effect.startPos.y + progress * effect.totalUpDistance;
+          effect.noteRect.material.opacity = 1 - progress;
+          effect.noteRect.lookAt(camera.position);
         }
       }
+    }
 
-      // Se modifica onPanelSelect para almacenar el último panel activado
-      function onPanelSelect(panel) {
-        // Almacenar el último panel activado para la nueva funcionalidad
-        lastActivatedARPanel = panel;
-        const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
-        panel.userData.bgMaterial.color.copy(randomColor);
-        setTimeout(() => {
-          panel.userData.bgMaterial.color.set(0x800080);
-        }, 200);
-        createNoteEffect(panel);
-        const panelIndex = panels.indexOf(panel);
-        window.handleARPanelSelect(panelIndex);
+    // Se modifica onPanelSelect para almacenar el último panel activado
+    function onPanelSelect(panel) {
+      // Almacenar el último panel activado para la nueva funcionalidad
+      lastActivatedARPanel = panel;
+      const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+      panel.userData.bgMaterial.color.copy(randomColor);
+      setTimeout(() => {
+        panel.userData.bgMaterial.color.set(0x800080);
+      }, 200);
+      createNoteEffect(panel);
+      const panelIndex = panels.indexOf(panel);
+      window.handleARPanelSelect(panelIndex);
+    }
+
+    // Configurar controlador XR para dispositivos con mandos
+    controller0.addEventListener('select', () => {
+      const tempMatrix = new THREE.Matrix4();
+      tempMatrix.identity().extractRotation(controller0.matrixWorld);
+      const raycaster = new THREE.Raycaster();
+      raycaster.ray.origin.setFromMatrixPosition(controller0.matrixWorld);
+      raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+      const intersects = raycaster.intersectObjects(panels, true);
+      if (intersects.length > 0) {
+        const selectedPanel = intersects[0].object.parent;
+        onPanelSelect(selectedPanel);
       }
+    });
+    scene.add(controller0);
 
-      // Configurar controlador XR para dispositivos con mandos
-      controller0.addEventListener('select', () => {
-        const tempMatrix = new THREE.Matrix4();
-        tempMatrix.identity().extractRotation(controller0.matrixWorld);
-        const raycaster = new THREE.Raycaster();
-        raycaster.ray.origin.setFromMatrixPosition(controller0.matrixWorld);
-        raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-        const intersects = raycaster.intersectObjects(panels, true);
-        if (intersects.length > 0) {
-          const selectedPanel = intersects[0].object.parent;
-          onPanelSelect(selectedPanel);
-        }
-      });
-      scene.add(controller0);
+    // Los eventos 'squeezestart' se mantienen, por si acaso.
+    controller0.addEventListener('squeezestart', () => {
+      if (lastActivatedARPanel) {
+        onPanelSelect(lastActivatedARPanel);
+      }
+    });
+    controller1.addEventListener('squeezestart', () => {
+      if (lastActivatedARPanel) {
+        onPanelSelect(lastActivatedARPanel);
+      }
+    });
 
-      // Los eventos 'squeezestart' se mantienen, por si acaso.
-      controller0.addEventListener('squeezestart', () => {
-        if (lastActivatedARPanel) {
-          onPanelSelect(lastActivatedARPanel);
-        }
-      });
-      controller1.addEventListener('squeezestart', () => {
-        if (lastActivatedARPanel) {
-          onPanelSelect(lastActivatedARPanel);
-        }
-      });
-
-      // Colisiones con las manos
-      function checkHandCollisions() {
-        const threshold = 0.08;
-        const now = performance.now();
-        for (let handIndex = 0; handIndex < 2; handIndex++) {
-          const hand = renderer.xr.getHand(handIndex);
-          if (hand) {
-            let fingerPos = new THREE.Vector3();
-            if (hand.joints) {
-              const indexTip = hand.joints['index-finger-tip'];
-              if (indexTip) {
-                indexTip.getWorldPosition(fingerPos);
-              } else if (hand.children.length > 0) {
-                hand.children[0].getWorldPosition(fingerPos);
-              }
+    // Colisiones con las manos
+    function checkHandCollisions() {
+      const threshold = 0.08;
+      const now = performance.now();
+      for (let handIndex = 0; handIndex < 2; handIndex++) {
+        const hand = renderer.xr.getHand(handIndex);
+        if (hand) {
+          let fingerPos = new THREE.Vector3();
+          if (hand.joints) {
+            const indexTip = hand.joints['index-finger-tip'];
+            if (indexTip) {
+              indexTip.getWorldPosition(fingerPos);
             } else if (hand.children.length > 0) {
               hand.children[0].getWorldPosition(fingerPos);
-            } else {
-              continue;
             }
-            panels.forEach(panel => {
-              const panelCenter = new THREE.Vector3();
-              panel.getWorldPosition(panelCenter);
-              if (fingerPos.distanceTo(panelCenter) < threshold) {
-                if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 150) {
-                  onPanelSelect(panel);
-                  panel.userData.lastActivated = now;
-                }
-              }
-            });
+          } else if (hand.children.length > 0) {
+            hand.children[0].getWorldPosition(fingerPos);
+          } else {
+            continue;
           }
-        }
-      }
-
-      function checkControllerCollisions() {
-        const threshold = 0.12;
-        const now = performance.now();
-        const controllers = [];
-        if (controller0) controllers.push(controller0);
-        if (controller1) controllers.push(controller1);
-        controllers.forEach(ctrl => {
-          let ctrlPos = new THREE.Vector3();
-          ctrl.getWorldPosition(ctrlPos);
           panels.forEach(panel => {
             const panelCenter = new THREE.Vector3();
             panel.getWorldPosition(panelCenter);
-            if (ctrlPos.distanceTo(panelCenter) < threshold) {
+            if (fingerPos.distanceTo(panelCenter) < threshold) {
               if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 150) {
                 onPanelSelect(panel);
                 panel.userData.lastActivated = now;
               }
             }
           });
-        });
+        }
       }
+    }
 
-      // NUEVA FUNCIONALIDAD: Verificar individualmente el estado de cada botón de cada mando
-      function checkAllControllerButtons() {
-        [controller0, controller1].forEach(ctrl => {
-          if (ctrl && ctrl.gamepad && ctrl.gamepad.buttons) {
-            // Inicializamos un array previo si aún no existe
-            if (!ctrl.userData.prevButtons) {
-              ctrl.userData.prevButtons = new Array(ctrl.gamepad.buttons.length).fill(false);
+    function checkControllerCollisions() {
+      const threshold = 0.12;
+      const now = performance.now();
+      const controllers = [];
+      if (controller0) controllers.push(controller0);
+      if (controller1) controllers.push(controller1);
+      controllers.forEach(ctrl => {
+        let ctrlPos = new THREE.Vector3();
+        ctrl.getWorldPosition(ctrlPos);
+        panels.forEach(panel => {
+          const panelCenter = new THREE.Vector3();
+          panel.getWorldPosition(panelCenter);
+          if (ctrlPos.distanceTo(panelCenter) < threshold) {
+            if (!panel.userData.lastActivated || now - panel.userData.lastActivated > 150) {
+              onPanelSelect(panel);
+              panel.userData.lastActivated = now;
             }
-            ctrl.gamepad.buttons.forEach((button, index) => {
-              // Si el botón acaba de pasar de no presionado a presionado
-              if (button.pressed && !ctrl.userData.prevButtons[index]) {
-                if (lastActivatedARPanel) {
-                  onPanelSelect(lastActivatedARPanel);
-                }
-              }
-              // Actualizar el estado previo para el siguiente frame
-              ctrl.userData.prevButtons[index] = button.pressed;
-            });
           }
         });
-      }
+      });
+    }
 
-      renderer.domElement.addEventListener('touchstart', (event) => {
-        const touch = event.touches[0];
-        const x = (touch.clientX / window.innerWidth) * 2 - 1;
-        const y = - (touch.clientY / window.innerHeight) * 2 + 1;
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-        const intersects = raycaster.intersectObjects(panels, true);
-        if (intersects.length > 0) {
-          const selectedPanel = intersects[0].object.parent;
-          onPanelSelect(selectedPanel);
+    // NUEVA FUNCIONALIDAD: Verificar individualmente el estado de cada botón de cada mando
+    function checkAllControllerButtons() {
+      [controller0, controller1].forEach(ctrl => {
+        if (ctrl && ctrl.gamepad && ctrl.gamepad.buttons) {
+          // Inicializamos un array previo si aún no existe
+          if (!ctrl.userData.prevButtons) {
+            ctrl.userData.prevButtons = new Array(ctrl.gamepad.buttons.length).fill(false);
+          }
+          ctrl.gamepad.buttons.forEach((button, index) => {
+            // Si el botón acaba de pasar de no presionado a presionado
+            if (button.pressed && !ctrl.userData.prevButtons[index]) {
+              if (lastActivatedARPanel) {
+                onPanelSelect(lastActivatedARPanel);
+              }
+            }
+            // Actualizar el estado previo para el siguiente frame
+            ctrl.userData.prevButtons[index] = button.pressed;
+          });
         }
       });
-
-      function render() {
-        checkHandCollisions();
-        checkControllerCollisions();
-        // Verificar el estado de cada botón en cada frame
-        checkAllControllerButtons();
-        updateNoteEffects();
-        renderer.render(scene, camera);
-      }
-      function animate() {
-        renderer.setAnimationLoop(render);
-      }
-      animate();
-    } else {
-      console.log("Dispositivo sin soporte para XR Hand Tracking. ARButton no se mostrará.");
     }
+
+    renderer.domElement.addEventListener('touchstart', (event) => {
+      const touch = event.touches[0];
+      const x = (touch.clientX / window.innerWidth) * 2 - 1;
+      const y = - (touch.clientY / window.innerHeight) * 2 + 1;
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+      const intersects = raycaster.intersectObjects(panels, true);
+      if (intersects.length > 0) {
+        const selectedPanel = intersects[0].object.parent;
+        onPanelSelect(selectedPanel);
+      }
+    });
+
+    function render() {
+      checkHandCollisions();
+      checkControllerCollisions();
+      // Verificar el estado de cada botón en cada frame
+      checkAllControllerButtons();
+      updateNoteEffects();
+      renderer.render(scene, camera);
+    }
+    function animate() {
+      renderer.setAnimationLoop(render);
+    }
+    animate();
   </script>
   <script>
     // Función global para manejar la selección de panel en AR
