@@ -52,7 +52,7 @@
     }
     #copyright {
       margin-bottom: 20px;
-      margin-top:-20px;
+      margin-top: -20px;
       font-size: 0.9em;
       color: blue;
       width: 100%;
@@ -138,7 +138,7 @@
     <div id="copyright">
       <a href="https://www.youtube.com/@rafgim" target="_blank" style="color: inherit; text-decoration: none;">© By Rafael Gimeno</a>
     </div>
-    <!-- Contenedor con las 6 filas de matices (de arriba a abajo: Fortissimo a Pianissimo) -->
+    <!-- Contenedor con las 6 filas de matiz dinámico (de arriba a abajo: Fortissimo a Pianissimo) -->
     <div id="dynamicMarkingsContainer">
       <div>Fortissimo</div>
       <div>Forte</div>
@@ -371,7 +371,6 @@
 
     // Manejo de eventos keydown: reproducir la nota correspondiente y prevenir el comportamiento por defecto
     document.addEventListener('keydown', function(e) {
-      // Si la tecla está mapeada, previene la acción por defecto (por ejemplo, no se activará la acción original de las teclas F1-F12)
       if (e.code in keyRowMap) {
         e.preventDefault();
       }
@@ -382,18 +381,25 @@
       var relativeY = rowIndex / (totalRows - 1); // 0 a 1
       var effectiveGain = computeEffectiveGain(relativeY);
 
-      // Actualiza el fondo de la fila correspondiente en dynamicMarkingsContainer.
+      // Actualiza el fondo de todas las filas a gris
       var dynamicContainer = document.getElementById('dynamicMarkingsContainer');
       var rows = dynamicContainer.children;
       for (var i = 0; i < rows.length; i++) {
         rows[i].style.backgroundColor = 'gray';
       }
+      
+      // Genera un color aleatorio
       var randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
+      
+      // Asigna el color aleatorio al panel dinámico (fila correspondiente)
       if (rows[rowIndex]) {
         rows[rowIndex].style.backgroundColor = randomColor;
       }
+      
+      // *** Cambio adicional: actualiza el color de fondo del body ***
+      document.body.style.backgroundColor = randomColor;
 
-      // Reproducir la siguiente nota del MIDI si está cargado, o la nota por defecto.
+      // Reproduce la nota MIDI correspondiente...
       var notesArray = [];
       if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
         var groupThreshold = 0.001;
