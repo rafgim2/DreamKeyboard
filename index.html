@@ -25,10 +25,11 @@
       margin: 0;
       overflow: hidden;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       height: 100vh;
-      padding-top: 10px;
+      padding: 10px;
       transition: background-color 0.3s ease;
     }
     #container {
@@ -56,7 +57,7 @@
       width: 100%;
       text-align: center;
     }
-    /* Contenedor que muestra las filas con los matices dinámicos */
+    /* Contenedor que muestra las filas de matices dinámicos */
     #dynamicMarkingsContainer {
       width: 100%;
       display: flex;
@@ -64,7 +65,7 @@
       user-select: none;
       margin-bottom: 20px;
     }
-    /* Cada fila tiene un fondo por defecto (gray); cuando se pulsa se resalta en un color aleatorio */
+    /* Cada fila tiene un fondo por defecto (gray) que se resalta cuando se pulsa */
     #dynamicMarkingsContainer > div {
       flex: 1;
       display: flex;
@@ -252,7 +253,7 @@
       }
     }
 
-    // Carga de archivo MIDI desde la entrada de archivo
+    // Cargar archivo MIDI desde entrada de archivo
     document.getElementById('midiFile').addEventListener('change', function(e) {
       document.getElementById('fileName').textContent = e.target.files[0].name;
       var reader = new FileReader();
@@ -287,7 +288,7 @@
         .catch(error => console.error("Error al cargar el MIDI:", error));
     }
 
-    // Cargar un MIDI por defecto si se desea
+    // Función para cargar MIDI por defecto al iniciar (opcional)
     function loadDefaultMidi() {
       const defaultMidiUrl = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/Handel%20&%20Halvorsen%20Passacaglia.mid";
       const defaultFileName = "Handel & Halvorsen Passacaglia.mid";
@@ -316,16 +317,15 @@
       console.log("Notas MIDI extraídas:", notesToPlay);
     }
 
-    // Cargar MIDI por defecto al iniciar
+    // Cargar MIDI por defecto al iniciar (opcional)
     document.addEventListener('DOMContentLoaded', function(){
       loadDefaultMidi();
     });
 
     // Mapeo de teclas a filas de matiz dinámico.
     // Se utiliza event.code para identificar la tecla y asignarla a una “fila” (0 a 5)
-    // Puedes modificar este objeto según tu teclado o preferencia.
     const keyRowMap = {
-      // Fila 0: Teclas de función (arriba, Fortissimo)
+      // Fila 0: Teclas de función (Fortissimo). Se previene su acción por defecto.
       'F1': 0, 'F2': 0, 'F3': 0, 'F4': 0, 'F5': 0, 'F6': 0, 'F7': 0, 'F8': 0, 'F9': 0, 'F10': 0, 'F11': 0, 'F12': 0,
       // Fila 1: Números y símbolos
       'Backquote': 1, 'Digit1': 1, 'Digit2': 1, 'Digit3': 1, 'Digit4': 1,
@@ -343,17 +343,20 @@
 
     const totalRows = 6; // De 0 a 5
 
-    // Manejo de eventos de keydown: se reproducirá la nota correspondiente
+    // Manejo de eventos keydown: reproducir la nota correspondiente y prevenir el comportamiento por defecto
     document.addEventListener('keydown', function(e) {
-      // Evitar que se repita la acción si la tecla se mantiene pulsada
+      // Si la tecla está mapeada, previene la acción por defecto (por ejemplo, no se activará la acción original de las teclas F1-F12)
+      if (e.code in keyRowMap) {
+        e.preventDefault();
+      }
       if (e.repeat) return;
-      if (!(e.code in keyRowMap)) return; // Si la tecla no está mapeada, se ignora
+      if (!(e.code in keyRowMap)) return;
 
       var rowIndex = keyRowMap[e.code]; // 0 (arriba) a 5 (abajo)
       var relativeY = rowIndex / (totalRows - 1); // 0 a 1
       var effectiveGain = computeEffectiveGain(relativeY);
 
-      // Actualiza el fondo de la fila correspondiente en dynamicMarkingsContainer
+      // Actualiza el fondo de la fila correspondiente en dynamicMarkingsContainer.
       var dynamicContainer = document.getElementById('dynamicMarkingsContainer');
       var rows = dynamicContainer.children;
       for (var i = 0; i < rows.length; i++) {
@@ -364,7 +367,7 @@
         rows[rowIndex].style.backgroundColor = randomColor;
       }
 
-      // Reproducir la siguiente nota del MIDI si está cargado, o la nota por defecto
+      // Reproducir la siguiente nota del MIDI si está cargado, o la nota por defecto.
       var notesArray = [];
       if (notesToPlay.length > 0 && currentNoteIndex < notesToPlay.length) {
         var groupThreshold = 0.001;
@@ -397,7 +400,7 @@
       }
     });
 
-    // En keyup, si no está activado el pedal, detener la(s) nota(s)
+    // Manejo de eventos keyup para detener la(s) nota(s) si no está activado el pedal
     document.addEventListener('keyup', function(e) {
       if (e.code in activeNotes) {
         activeNotes[e.code].forEach(function(noteObj) {
