@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <!-- Meta viewport para evitar zoom accidental -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>DreamTouch - Teclado</title>
+  <title>DreamKeyboard - Teclado</title>
   <!-- Shim para evitar error de require -->
   <script>
     window.require = function() {};
@@ -47,11 +47,10 @@
     }
     h1 {
       margin: 0 0 20px 0;
-      font-size: 2.5em;
+      font-size: 2.8em;
       text-align: center;
     }
     #copyright {
-      margin-top:-20px;
       margin-bottom: 20px;
       font-size: 0.9em;
       color: blue;
@@ -88,7 +87,7 @@
       gap: 10px;
       width: 100%;
     }
-    #loadButton {
+    #loadButton, #pedalBtn {
       background-color: #90EE90;
       color: black;
       padding: 10px 20px;
@@ -98,13 +97,8 @@
       cursor: pointer;
     }
     #pedalBtn {
-      background-color: #90EE90;
-      color: black;
       padding: 5px 10px;
       font-size: 0.9em;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
     }
     #midiFile {
       display: none;
@@ -112,6 +106,22 @@
     #fileName {
       font-style: italic;
       color: black;
+    }
+    /* Contenedor para el selector de canciones de muestra */
+    #sampleSongsContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      width: 100%;
+    }
+    #sampleSongs {
+      padding: 5px;
+      font-size: 0.8em;
+      border-radius: 5px;
+      border: none;
+      width: 100%;
+      text-align: center;
     }
     /* Instrucciones de uso */
     #instructions {
@@ -137,13 +147,27 @@
       <div>Pianissimo</div>
     </div>
     <div id="instructions">
-      Presiona las teclas del teclado físico. El número de fila determina el matiz dinámico.
+      Presiona las teclas del teclado físico. La fila asignada determina el matiz dinámico.
     </div>
     <div id="buttons">
+      <!-- Cargar archivo MIDI desde el equipo -->
       <label for="midiFile" id="loadButton">
         Cargar Archivo MIDI
         <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi,application/x-midi">
       </label>
+      <!-- Selector de canciones de muestra -->
+      <div id="sampleSongsContainer">
+        <label for="sampleSongs">Canciones de muestra:</label>
+        <select id="sampleSongs">
+          <option value="">-- Selecciona una canción --</option>
+          <option value="Beethoven Para Elisa.mid">Beethoven Para Elisa.mid</option>
+          <option value="Beethoven Patética.mid">Beethoven - Patética.mid</option>
+          <option value="Handel & Halvorsen Passacaglia.mid">Handel & Halvorsen - Passacaglia.mid</option>
+          <option value="R.Korsakov El vuelo del moscardón.mid">R.Korsakov - El vuelo del moscardón.mid</option>
+          <option value="Rachmaninoff Concert nº2 Tercer mov.mid">Rachmaninoff - Concert nº2 Tercer mov.mid</option>
+          <option value="Satie Gymnopedie n1.mid">Satie - Gymnopedie n1.mid</option>
+        </select>
+      </div>
       <div id="fileName"></div>
       <button id="pedalBtn">Pedal ON</button>
     </div>
@@ -434,6 +458,15 @@
       pedalBtn.textContent = pedalOn ? "Pedal ON" : "Pedal OFF";
       pedalBtn.style.backgroundColor = pedalOn ? "#90EE90" : "#ADD8E6";
       console.log("Pedal:", pedalOn ? "ON" : "OFF");
+    });
+
+    // Añadir evento al selector de canciones de muestra para cargar la canción seleccionada
+    document.getElementById('sampleSongs').addEventListener('change', function() {
+      if (this.value) {
+        const fileName = this.value;
+        const url = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/" + encodeURIComponent(fileName);
+        loadMidiFromUrl(url, fileName);
+      }
     });
   </script>
 </body>
